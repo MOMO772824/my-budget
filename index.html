@@ -10,7 +10,7 @@
 const KEY="myBudgetAppV3";
 const fresh={version:3,startDay:10,baseIncome:190000,bank:200000,categories:[["食費",20000],["交通費",8000],["交際費",20000],["美容",0],["コスメ",5000],["服・靴",10000],["日用品",5000],["医療",5000],["趣味",5000],["旅行",0],["その他",7000]],savings:[["美容積立",7700,0],["旅行積立",10000,0],["プレゼント積立",3000,0]],incomes:[],expenses:[],cycles:{}};
 let d=JSON.parse(localStorage.getItem(KEY)||"null")||fresh; migrate(); ensureCurrentCycle(); save(); let viewKey=current().key;
-function migrate(){d.version=3;d.cycles=d.cycles||{};d.incomes=d.incomes||[];d.expenses=d.expenses||[];d.savings=d.savings||[];d.categories=d.categories||[];d.budgetOverrides=d.budgetOverrides||{};d.savingOverrides=d.savingOverrides||{};let first=Object.keys(d.cycles).sort()[0]||current().key;d.savings.forEach(x=>{if(!x[3])x[3]=first})}
+function migrate(){d.version=3;d.cycles=d.cycles||{};d.incomes=d.incomes||[];d.expenses=d.expenses||[];d.savings=d.savings||[];d.categories=d.categories||[];d.budgetOverrides=d.budgetOverrides||{}}
 function save(){localStorage.setItem(KEY,JSON.stringify(d))}
 function yen(n){return"¥"+Math.round(n).toLocaleString("ja-JP")}
 function dateISO(x){return new Date(x.getFullYear(),x.getMonth(),x.getDate()).toISOString().slice(0,10)}
@@ -35,44 +35,21 @@ function incomeTotal(key=viewKey){let arr=incomes(key);return arr.reduce((a,e)=>
 function expenseTotal(key=viewKey){return expenses(key).reduce((a,e)=>a+e.amount,0)}
 function budgetSpent(name,key=viewKey){return d.expenses.filter(e=>e.type==="budget"&&keyForDate(e.date)===key&&e.cat===name).reduce((a,e)=>a+e.amount,0)}
 function savingSpent(name,key=viewKey){return d.expenses.filter(e=>e.type==="saving"&&keyForDate(e.date)===key&&e.cat===name).reduce((a,e)=>a+e.amount,0)}
-function savingAmountFor(name,key=viewKey){
- let exact=d.savingOverrides?.[key]?.[name];
- if(exact!==undefined)return Number(exact);
- let cat=d.savings.find(x=>x[0]===name);
- return cat?Number(cat[1]):0;
-}
-function savingMonthlyTotal(key=viewKey){return d.savings.reduce((a,x)=>a+savingAmountFor(x[0],key),0)}
-function cycleKeyOffset(key,delta){
- let [y,m]=key.split("-").map(Number),dt=new Date(y,m-1+delta,1);
- return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`;
-}
-function savingStartKey(name){
- let cat=d.savings.find(x=>x[0]===name);
- return (cat&&cat[3])||Object.keys(d.cycles||{}).sort()[0]||current().key;
-}
-function savingAccumulated(name,key=viewKey){
- let start=savingStartKey(name);
- if(start>key)return 0;
- let total=0,k=start,guard=0;
- while(k<=key&&guard++<600){total+=savingAmountFor(name,k);k=cycleKeyOffset(k,1);}
- let spent=d.expenses.filter(e=>e.type==="saving"&&e.cat===name&&keyForDate(e.date)<=key).reduce((a,e)=>a+e.amount,0);
- return total-spent;
-}
-function savingAccumulatedTotal(key=viewKey){return d.savings.reduce((a,x)=>a+savingAccumulated(x[0],key),0)}
+function savingMonthlyTotal(){return d.savings.reduce((a,x)=>a+x[1],0)}
 function totalSavedFromIncome(key){let inc=incomeTotal(key),out=expenseTotal(key);return Math.max(0,inc-out)}
 function renderHome(){ensureCurrentCycle();let c=viewCycle(),inc=incomeTotal(),bt=cycleBudgetTotal(),st=savingMonthlyTotal(),bu=expenses(viewKey).filter(e=>e.type==="budget").reduce((a,e)=>a+e.amount,0),remain=bt-bu,allocated=bt+st;document.getElementById("period").innerHTML=`<button class="secondary" onclick="moveMonth(-1)">‹</button>　${c.label}　<button class="secondary" onclick="moveMonth(1)">›</button>`;
 document.getElementById("home").innerHTML=`<div class="card hero"><div class="label">今月の収入</div><div class="big">${yen(inc)}</div><div class="row mini"><span>予算＋積立 ${yen(allocated)}</span><span>未振分 ${yen(inc-allocated)}</span></div><div class="progress"><i style="width:${Math.min(100,inc?allocated/inc*100:0)}%"></i></div></div>
-<div class="card"><div class="row"><span class="mini muted">表示中：${c.label}</span><button class="secondary" onclick="goCurrent()">今月へ</button></div></div><div class="grid"><div class="card"><div class="label">予算合計</div><div class="amount">${yen(bt)}</div><div class="muted mini">残り ${yen(remain)}</div></div><div class="card"><div class="label">現在の積立残高</div><div class="amount">${yen(savingAccumulatedTotal(viewKey))}</div><div class="muted mini">今月の積立予定 ${yen(st)}</div></div></div>
+<div class="card"><div class="row"><span class="mini muted">表示中：${c.label}</span><button class="secondary" onclick="goCurrent()">今月へ</button></div></div><div class="grid"><div class="card"><div class="label">予算合計</div><div class="amount">${yen(bt)}</div><div class="muted mini">残り ${yen(remain)}</div></div><div class="card"><div class="label">積立合計</div><div class="amount">${yen(st)}</div></div></div>
 <div class="card"><div class="row"><h2>予算の残り</h2><span class="pill">繰越 ${yen(Object.values(d.cycles[c.key].carried).reduce((a,x)=>a+x,0))}</span></div>${d.categories.map(x=>{let total=baseBudgetFor(x[0],viewKey)+(d.cycles[c.key].carried[x[0]]||0),u=budgetSpent(x[0]);return`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(total-u)}</b></div><div class="muted mini">予算 ${yen(total)} / 使用 ${yen(u)}</div></div>`}).join("")}</div>
-<div class="card"><h2>🏦 積立</h2>${d.savings.map(x=>{let m=savingAmountFor(x[0],viewKey);return`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(savingAccumulated(x[0],viewKey))}</b></div><div class="muted mini">毎月 ${yen(m)} / 今月使用 ${yen(savingSpent(x[0]))}</div></div>`}).join("")}</div>
+<div class="card"><h2>🏦 積立</h2>${d.savings.map(x=>`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(x[2]+x[1]-savingSpent(x[0]))}</b></div><div class="muted mini">毎月 ${yen(x[1])} / 今月使用 ${yen(savingSpent(x[0]))}</div></div>`).join("")}</div>
 <div class="card"><div class="row"><div><div class="label">現在の貯金</div><div class="amount">${yen(d.bank)}</div></div><div><div class="label">今月の支出</div><div class="amount">${yen(expenseTotal())}</div></div></div></div>
 <div class="card"><h2>収入</h2>${incomes().length?incomes().map(e=>`<div class="cat row"><span>${e.memo||"収入"}<small class="muted"> ${e.date}</small></span><b>${yen(e.amount)}</b></div>`).join(""):`<div class="muted mini">収入を登録するとここに表示されます。</div>`}<button class="primary" onclick="openIncome()">＋ 収入を追加</button></div>`}
-function renderBudget(){let c=viewCycle();document.getElementById("budget").innerHTML=`<div class="card"><h2>💰 予算</h2><div class="notice">毎月10日に新しい家計期間を自動作成。前月の未使用予算は自動で繰り越します。</div>${d.categories.map((x,i)=>`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(baseBudgetFor(x[0],viewKey)+(d.cycles[c.key].carried[x[0]]||0)-budgetSpent(x[0]))}</b></div><div class="row mini muted"><span>基本 ${yen(baseBudgetFor(x[0],viewKey))} / 繰越 ${yen(d.cycles[c.key].carried[x[0]]||0)}</span><button class="secondary" onclick="editBudget(${i})">変更</button></div></div>`).join("")}</div><div class="card"><h2>締め処理</h2><div class="notice">現在の期間を締めると未使用分を次の10日から自動で繰り越します。通常は何もしなくても10日に新しい期間が作られます。</div><button class="primary" onclick="closeCurrent()">この月を締める</button></div>`}
-function renderSaving(){document.getElementById("saving").innerHTML=`<div class="card"><h2>🏦 目的別積立</h2>${d.savings.map((x,i)=>{let m=savingAmountFor(x[0],viewKey);return`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(savingAccumulated(x[0],viewKey))}</b></div><div class="mini muted">今月積立 ${yen(m)} / 今月支出 ${yen(savingSpent(x[0]))} / 上の金額は繰越後の残高</div><div style="display:flex;gap:8px;margin-top:8px"><button class="secondary" onclick="editSaving(${i})">変更</button><button class="danger" onclick="deleteSaving(${i})">削除</button></div></div>`}).join("")}<button class="primary" onclick="addSaving()">＋ 積立を追加</button></div><div class="card"><h2>💵 貯金</h2><div class="label">現在の貯金</div><div class="big">${yen(d.bank)}</div><div class="muted mini">今月の収入−支出の参考額：${yen(totalSavedFromIncome())}</div><button class="secondary" onclick="editBank()">貯金額を変更</button></div>`}
+function renderBudget(){let c=viewCycle();document.getElementById("budget").innerHTML=`<div class="card"><h2>💰 予算</h2><div class="notice">毎月10日に新しい家計期間を自動作成。前月の未使用予算は自動で繰り越します。</div>${d.categories.map((x,i)=>`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(x[1]+(d.cycles[c.key].carried[x[0]]||0)-budgetSpent(x[0]))}</b></div><div class="row mini muted"><span>基本 ${yen(baseBudgetFor(x[0],viewKey))} / 繰越 ${yen(d.cycles[c.key].carried[x[0]]||0)}</span><button class="secondary" onclick="editBudget(${i})">変更</button></div></div>`).join("")}</div><div class="card"><h2>締め処理</h2><div class="notice">現在の期間を締めると未使用分を次の10日から自動で繰り越します。通常は何もしなくても10日に新しい期間が作られます。</div><button class="primary" onclick="closeCurrent()">この月を締める</button></div>`}
+function renderSaving(){document.getElementById("saving").innerHTML=`<div class="card"><h2>🏦 目的別積立</h2>${d.savings.map((x,i)=>`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(x[2]+x[1]-savingSpent(x[0]))}</b></div><div class="mini muted">毎月 ${yen(x[1])} / 今月使用 ${yen(savingSpent(x[0]))}</div><div style="display:flex;gap:8px;margin-top:8px"><button class="secondary" onclick="editSaving(${i})">変更</button><button class="danger" onclick="deleteSaving(${i})">削除</button></div></div>`).join("")}<button class="primary" onclick="addSaving()">＋ 積立を追加</button></div><div class="card"><h2>💵 貯金</h2><div class="label">現在の貯金</div><div class="big">${yen(d.bank)}</div><div class="muted mini">今月の収入−支出の参考額：${yen(totalSavedFromIncome())}</div><button class="secondary" onclick="editBank()">貯金額を変更</button></div>`}
 function months12(){let now=current().start,a=[];for(let i=11;i>=0;i--){let x=new Date(now.getFullYear(),now.getMonth()-i,d.startDay);a.push({key:`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`,label:`${x.getMonth()+1}月`})}return a}
 function renderAnnual(){let ms=months12(),rows=ms.map(m=>{let inc=incomeTotal(m.key),ex=expenseTotal(m.key),sv=Math.max(0,inc-ex);return{...m,inc,ex,sv}}),mxE=Math.max(1,...rows.map(x=>x.ex)),mxS=Math.max(1,...rows.map(x=>x.sv));document.getElementById("annual").innerHTML=`<div class="card"><h2>📊 1年間</h2><div class="label">家計期間ごとの収入・支出・貯金</div></div><div class="card"><h2>支出</h2><div class="chart">${rows.map(x=>`<div class="barwrap"><div class="value">${yen(x.ex)}</div><div class="bar" style="height:${Math.max(2,x.ex/mxE*135)}px"></div><div class="barlabel">${x.label}</div></div>`).join("")}</div></div><div class="card"><h2>貯金額</h2><div class="chart">${rows.map(x=>`<div class="barwrap"><div class="value">${yen(x.sv)}</div><div class="bar save" style="height:${Math.max(2,x.sv/mxS*135)}px"></div><div class="barlabel">${x.label}</div></div>`).join("")}</div></div><div class="card"><h2>月別</h2>${rows.map(x=>`<div class="cat"><div class="row"><span>${x.label}</span><b>${yen(x.sv)}</b></div><div class="muted mini">収入 ${yen(x.inc)} / 支出 ${yen(x.ex)}</div></div>`).join("")}</div>`}
 function renderHistory(){let arr=[...expenses(viewKey)].sort((a,b)=>b.date.localeCompare(a.date));document.getElementById("history").innerHTML=`<div class="card"><h2>🧾 ${viewCycle().label} の支出履歴</h2>${arr.length?arr.map((e,i)=>`<div class="cat"><div class="row"><span><b>${e.cat}</b><br><small class="muted">${e.date} ${e.memo||""}</small></span><span><b>${yen(e.amount)}</b><br><button class="secondary" onclick="editExpense('${e.id}')">修正</button> <button class="danger" onclick="deleteExpense('${e.id}')">削除</button></span></div></div>`).join(""):`<div class="muted">まだ支出がありません。</div>`}</div>`}
-function renderSettings(){document.getElementById("settings").innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><div class="pill" style="display:inline-block;margin-bottom:10px">予算表示同期版 v12</div><label class="mini">毎月の基本収入（記録がない期間の参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div><div class="card"><h2>🗂️ カテゴリ</h2>${d.categories.map((x,i)=>`<div class="cat row"><span>${x[0]}</span><div style="display:flex;gap:8px"><button class="secondary" onclick="editBudget(${i})">変更</button><button class="danger" onclick="deleteCategory(${i})">削除</button></div></div>`).join("")}<button class="primary" onclick="addCategory()">＋ カテゴリを追加</button></div><div class="card"><h2>💾 データ</h2><p class="mini muted">バックアップはJSONファイルとして保存します。復元すると現在のデータが置き換わります。</p><button class="primary" onclick="backup()">バックアップを書き出す</button><br><br><button class="secondary" onclick="restoreFile()">バックアップを復元</button><input id="restoreInput" type="file" accept=".json" style="display:none"></div><div class="card"><h2>🧾 支出履歴</h2><button class="primary" onclick="tab('history',document.querySelectorAll('nav button')[0])">今月の履歴を見る</button></div>`}
+function renderSettings(){document.getElementById("settings").innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><label class="mini">毎月の基本収入（記録がない期間の参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div><div class="card"><h2>🗂️ カテゴリ</h2>${d.categories.map((x,i)=>`<div class="cat row"><span>${x[0]}</span><div style="display:flex;gap:8px"><button class="secondary" onclick="editBudget(${i})">変更</button><button class="danger" onclick="deleteCategory(${i})">削除</button></div></div>`).join("")}<button class="primary" onclick="addCategory()">＋ カテゴリを追加</button></div><div class="card"><h2>💾 データ</h2><p class="mini muted">バックアップはJSONファイルとして保存します。復元すると現在のデータが置き換わります。</p><button class="primary" onclick="backup()">バックアップを書き出す</button><br><br><button class="secondary" onclick="restoreFile()">バックアップを復元</button><input id="restoreInput" type="file" accept=".json" style="display:none"></div><div class="card"><h2>🧾 支出履歴</h2><button class="primary" onclick="tab('history',document.querySelectorAll('nav button')[0])">今月の履歴を見る</button></div>`}
 function render(){ensureCurrentCycle();renderHome();renderBudget();renderSaving();renderAnnual();renderHistory();renderSettings()}
 function moveMonth(delta){let [y,m]=viewKey.split("-").map(Number);let x=new Date(y,m-1+delta,d.startDay);viewKey=`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`;if(!d.cycles[viewKey])d.cycles[viewKey]={createdAt:new Date().toISOString(),carried:{},closed:false};render();toast(`${viewCycle().label}を表示`)}
 function goCurrent(){viewKey=current().key;render()}
@@ -109,22 +86,7 @@ function applyBudgetChange(i,mode){
  }
  save();closeModal();render();toast(mode==="only"?"この月だけ変更しました":"この月以降の予算を変更しました");
 }
-function editSaving(i){
- let name=d.savings[i][0],current=savingAmountFor(name,viewKey);
- openModal(`${name}の積立額を変更`,`
- <div class="notice">表示中の「${viewCycle().label}」だけ変更します。過去・未来の月は変わりません。</div>
- <label class="mini">毎月の積立額</label>
- <input id="es_amount" type="number" min="0" value="${current}">
- <button class="primary" onclick="applySavingChange(${i})">この月だけ反映</button>`);
-}
-function applySavingChange(i){
- let name=d.savings[i][0],amount=Number(document.getElementById("es_amount").value);
- if(!Number.isFinite(amount)||amount<0){alert("0円以上の金額を入力してね");return;}
- d.savingOverrides=d.savingOverrides||{};
- d.savingOverrides[viewKey]=d.savingOverrides[viewKey]||{};
- d.savingOverrides[viewKey][name]=amount;
- save();closeModal();render();toast(`${name}：${yen(amount)} に変更しました`);
-}
+function editSaving(i){let n=prompt(`${d.savings[i][0]}の毎月積立額`,d.savings[i][1]);if(n!==null&&!isNaN(+n)){d.savings[i][1]=+n;save();render()}}
 function deleteCategory(i){
  let name=d.categories[i][0];
  if(!confirm(`「${name}」をカテゴリ一覧から削除しますか？\n過去の支出履歴は残ります。`))return;
@@ -139,7 +101,7 @@ function deleteSaving(i){
  save();render();toast("積立を削除しました");
 }
 function addCategory(){let n=prompt("カテゴリ名");if(n){d.categories.push([n,0]);save();render()}}
-function addSaving(){let n=prompt("積立名");if(!n)return;let a=+prompt("毎月の積立額","0")||0;d.savings.push([n,a,0,viewKey]);save();render()}
+function addSaving(){let n=prompt("積立名");if(!n)return;let a=+prompt("毎月の積立額","0")||0;d.savings.push([n,a,0]);save();render()}
 function editBank(){let n=prompt("現在の貯金額",d.bank);if(n!==null&&!isNaN(+n)){d.bank=+n;save();render()}}
 function saveSettings(){d.baseIncome=+baseIncome.value||0;let old=d.startDay;d.startDay=Math.min(28,Math.max(1,+startDay.value||10));if(old!==d.startDay)ensureCurrentCycle();save();render();toast("保存しました")}
 function closeCurrent(){let c=current();if(d.cycles[c.key].closed)return;d.cycles[c.key].carried=calculateCarry(c.key);d.cycles[c.key].closed=true;save();ensureCurrentCycle();render();toast("この月を締めました")}
