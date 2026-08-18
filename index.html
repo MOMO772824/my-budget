@@ -48,7 +48,7 @@ h2{font-size:18px;margin:6px 0 14px}.hidden{display:none}
 
 <script>
 const KEY="myBudgetAppV3";
-const APP_VERSION=14;
+const APP_VERSION=16;
 const fresh={
  version:APP_VERSION,startDay:10,baseIncome:190000,bank:0,
  categories:[["食費",20000],["交通費",8000],["交際費",20000],["美容",0],["コスメ",5000],["服・靴",10000],["日用品",5000],["医療",5000],["趣味",5000],["旅行",0],["その他",7000]],
@@ -76,6 +76,21 @@ function migrate(){
  d.version=APP_VERSION;
  d.startDay=Number(d.startDay||10); d.baseIncome=Number(d.baseIncome||0);
  d.categories=Array.isArray(d.categories)?d.categories:[];
+ // v16: this household book officially starts 2026-08-10.
+ // Transport budget is 17,510 yen from the start and remains the default going forward.
+ if(!d._v16TransportFixed){
+   let tr=d.categories.find(x=>x[0]==="交通費");
+   if(tr)tr[1]=17510;
+   if(d.budgetMonthly){
+     Object.keys(d.budgetMonthly).filter(k=>k<"2026-08").forEach(k=>delete d.budgetMonthly[k]);
+     Object.keys(d.budgetMonthly).forEach(k=>{if(d.budgetMonthly[k])delete d.budgetMonthly[k]["交通費"]});
+   }
+   if(d.budgetOverrides){
+     Object.keys(d.budgetOverrides).filter(k=>k<"2026-08").forEach(k=>delete d.budgetOverrides[k]);
+     Object.keys(d.budgetOverrides).forEach(k=>{if(d.budgetOverrides[k])delete d.budgetOverrides[k]["交通費"]});
+   }
+   d._v16TransportFixed=true;
+ }
  d.savings=Array.isArray(d.savings)?d.savings:[];
  d.incomes=Array.isArray(d.incomes)?d.incomes:[];
  d.expenses=Array.isArray(d.expenses)?d.expenses:[];
@@ -100,6 +115,22 @@ function migrate(){
    if(Array.isArray(x))return{id:"s"+i+"_"+x[0],name:String(x[0]),base:Number(x[1]||0),initial:Number(x[2]||0),startKey:x[3]||firstKey};
    return{id:x.id||("s"+i+"_"+x.name),name:String(x.name||"積立"),base:Number(x.base||x.monthly||0),initial:Number(x.initial||0),startKey:x.startKey||firstKey};
  });
+ // v15: old savingOverrides used saving names; translate them to the new IDs.
+ if(d.savingOverrides&&!d._v15SavingOverrideMigrated){
+   let cv={};
+   Object.keys(d.savingOverrides).forEach(k=>{
+     cv[k]=cv[k]||{};
+     Object.entries(d.savingOverrides[k]||{}).forEach(([name,amount])=>{
+       let sv=d.savings.find(x=>x.name===name);
+       if(sv)cv[k][sv.id]=Number(amount);
+     });
+   });
+   Object.keys(cv).forEach(k=>{
+     d.savingMonthly[k]=d.savingMonthly[k]||{};
+     Object.assign(d.savingMonthly[k],cv[k]);
+   });
+   d._v15SavingOverrideMigrated=true;
+ }
  // 目的別貯金を正規化。旧bank残高があれば最初の「貯金」に移す
  d.goalSavings=d.goalSavings.map((x,i)=>{
    if(Array.isArray(x))return{id:"g"+i+"_"+x[0],name:String(x[0]),base:Number(x[1]||0),initial:Number(x[2]||0),startKey:x[3]||current().key};
@@ -165,7 +196,7 @@ function renderHome(){
  ensureCycle(viewKey);let c=cycleFromKey(viewKey),inc=incomeTotal(viewKey),bt=budgetTotal(viewKey),st=savingMonthlyTotal(viewKey),gt=goalMonthlyTotal(viewKey),alloc=bt+st+gt,used=expenses(viewKey).filter(e=>e.type==="budget").reduce((a,e)=>a+Number(e.amount||0),0);
  period.innerHTML=`<button class="secondary" onclick="moveMonth(-1)">‹</button>　${c.label}　<button class="secondary" onclick="moveMonth(1)">›</button>`;
  home.innerHTML=`
- <div class="card hero"><span class="badge">振り分け家計簿 v14</span><div class="label" style="margin-top:12px">今月の収入</div><div class="big">${yen(inc)}</div>
+ <div class="card hero"><span class="badge">振り分け家計簿 v16</span><div class="label" style="margin-top:12px">今月の収入</div><div class="big">${yen(inc)}</div>
  <div class="row mini"><span>振り分け済 ${yen(alloc)}</span><span>今月未振分 ${yen(unallocatedForMonth(viewKey))}</span></div>
  <div class="progress"><i style="width:${Math.min(100,inc?alloc/inc*100:0)}%"></i></div></div>
  <div class="grid">
@@ -201,7 +232,7 @@ function renderSaving(){
 function months12(){let now=current().start,a=[];for(let i=11;i>=0;i--){let x=new Date(now.getFullYear(),now.getMonth()-i,d.startDay);a.push({key:`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`,label:`${x.getMonth()+1}月`})}return a}
 function renderAnnual(){let rows=months12().map(m=>({ ...m,inc:incomeTotal(m.key),ex:expenseTotal(m.key),save:goalMonthlyTotal(m.key)+savingMonthlyTotal(m.key)})),mx=Math.max(1,...rows.map(x=>x.ex),...rows.map(x=>x.save));annual.innerHTML=`<div class="card"><h2>📊 1年間</h2><div class="label">月ごとの支出と積立・貯金振り分け</div></div><div class="card"><h2>支出</h2><div class="chart">${rows.map(x=>`<div class="barwrap"><div class="value">${yen(x.ex)}</div><div class="bar" style="height:${Math.max(2,x.ex/mx*135)}px"></div><div class="barlabel">${x.label}</div></div>`).join("")}</div></div><div class="card"><h2>積立＋貯金</h2><div class="chart">${rows.map(x=>`<div class="barwrap"><div class="value">${yen(x.save)}</div><div class="bar save" style="height:${Math.max(2,x.save/mx*135)}px"></div><div class="barlabel">${x.label}</div></div>`).join("")}</div></div>`}
 function renderHistory(){let arr=[...expenses(viewKey)].sort((a,b)=>b.date.localeCompare(a.date));history.innerHTML=`<div class="card"><h2>🧾 ${cycleFromKey(viewKey).label}</h2>${arr.length?arr.map(e=>`<div class="cat"><div class="row"><span><b>${displayCat(e)}</b><br><small class="muted">${e.date} ${e.memo||""}</small></span><span><b>${yen(e.amount)}</b><br><button class="secondary" onclick="editExpense('${e.id}')">修正</button> <button class="danger" onclick="deleteExpense('${e.id}')">削除</button></span></div></div>`).join(""):`<div class="muted mini">支出はありません。</div>`}</div>`}
-function renderSettings(){settings.innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><span class="badge">振り分け家計簿 v14</span><label class="mini" style="display:block;margin-top:14px">毎月の基本収入（参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div>
+function renderSettings(){settings.innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><span class="badge">振り分け家計簿 v16</span><label class="mini" style="display:block;margin-top:14px">毎月の基本収入（参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div>
 <div class="card"><h2>🗂️ 予算カテゴリ</h2>${d.categories.map((x,i)=>`<div class="cat row"><span>${x[0]}</span><div><button class="secondary" onclick="editBudget(${i})">変更</button> <button class="danger" onclick="deleteCategory(${i})">削除</button></div></div>`).join("")}<button class="primary" onclick="addCategory()">＋ カテゴリを追加</button></div>
 <div class="card"><h2>💾 データ</h2><button class="primary" onclick="backup()">バックアップを書き出す</button><br><br><button class="secondary" onclick="restoreFile()">バックアップを復元</button><input id="restoreInput" type="file" accept=".json" style="display:none"></div>
 <div class="card"><h2>🧾 支出履歴</h2><button class="primary" onclick="tab('history',null)">今月の履歴を見る</button></div>`}
@@ -241,7 +272,7 @@ function deleteGoal(i){if(confirm(`「${d.goalSavings[i].name}」を削除しま
 function displayCat(e){if(e.type==="budget")return e.cat;if(e.type==="saving")return savingById(e.cat)?.name||"積立";if(e.type==="goal")return goalById(e.cat)?.name||"貯金";return"未振分金"}
 function saveSettings(){d.baseIncome=Number(baseIncome.value)||0;d.startDay=Math.min(28,Math.max(1,Number(startDay.value)||10));save();viewKey=current().key;ensureCycle();render();toastMsg("保存しました")}
 function backup(){let blob=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`わたしの家計簿_${current().key}.json`;a.click();URL.revokeObjectURL(url)}
-function restoreFile(){restoreInput.click();restoreInput.onchange=()=>{let f=restoreInput.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.categories||!x.expenses)throw 0;if(confirm("現在のデータをバックアップで置き換えますか？")){d=x;migrate();save();viewKey=current().key;render()}}catch{alert("このバックアップは読み込めませんでした")}};r.readAsText(f)}}
+function restoreFile(){restoreInput.click();restoreInput.onchange=()=>{let f=restoreInput.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.categories||!x.expenses)throw 0;if(confirm(`現在のデータをバックアップで置き換えますか？\n支出 ${x.expenses.length}件 / 収入 ${(x.incomes||[]).length}件 を読み込みます。`)){d=x;migrate();save();viewKey=current().key;ensureCycle();render();setTimeout(()=>alert(`復元しました。\n支出履歴：${d.expenses.length}件\n収入：${d.incomes.length}件\n2026年8月の交通費予算：${yen(budgetFor("交通費","2026-08"))}`),200)}}catch{alert("このバックアップは読み込めませんでした")}};r.readAsText(f)}}
 
 render();
 </script>
