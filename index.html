@@ -48,14 +48,14 @@ h2{font-size:18px;margin:6px 0 14px}.hidden{display:none}
 
 <script>
 const KEY="myBudgetAppV3";
-const APP_VERSION=18;
+const APP_VERSION=19;
 const fresh={
  version:APP_VERSION,startDay:10,baseIncome:190000,bank:0,
  categories:[["食費",20000],["交通費",8000],["交際費",20000],["美容",0],["コスメ",5000],["服・靴",10000],["日用品",5000],["医療",5000],["趣味",5000],["旅行",0],["その他",7000]],
  savings:[["美容積立",7700,0],["旅行積立",10000,0],["プレゼント積立",3000,0]],
  incomes:[],expenses:[],cycles:{},
  budgetMonthly:{},budgetForward:{},savingMonthly:{},
- goalSavings:[],goalSavingMonthly:{}
+ goalSavings:[],goalSavingMonthly:{},balanceChecks:{}
 };
 let d=JSON.parse(localStorage.getItem(KEY)||"null")||structuredClone(fresh);
 
@@ -100,6 +100,7 @@ function migrate(){
  d.savingMonthly=d.savingMonthly||d.savingOverrides||{};
  d.goalSavingMonthly=d.goalSavingMonthly||d.goalSavingOverrides||{};
  d.goalSavings=Array.isArray(d.goalSavings)?d.goalSavings:[];
+ d.balanceChecks=d.balanceChecks||{};
 
  // 旧版の月別予算は「その月だけ」の設定として保全
  if(d.budgetOverrides&&!d._v14BudgetMigrated){
@@ -192,13 +193,62 @@ function unallocatedBalance(key=viewKey){
  return add-spent;
 }
 
+
+function balanceCheck(key=viewKey){
+ let x=d.balanceChecks?.[key]||{};
+ return{
+   bank:Number(x.bank||0),
+   cash:Number(x.cash||0),
+   barcode:Number(x.barcode||0),
+   other:Number(x.other||0),
+   note:String(x.note||""),
+   updatedAt:x.updatedAt||""
+ };
+}
+function balanceTotal(key=viewKey){
+ let x=balanceCheck(key);
+ return x.bank+x.cash+x.barcode+x.other;
+}
+function openBalanceCheck(){
+ let x=balanceCheck(viewKey);
+ openModal("毎月10日の残高確認",`
+   <div class="notice">${cycleFromKey(viewKey).label}<br>その月に実際に持っている残高を入力します。翌月に入力しても過去の月は変わりません。</div>
+   <label class="mini">口座残高</label><input id="bc_bank" type="number" inputmode="numeric" value="${x.bank}">
+   <label class="mini">現金残高</label><input id="bc_cash" type="number" inputmode="numeric" value="${x.cash}">
+   <label class="mini">バーコード決済残高</label><input id="bc_barcode" type="number" inputmode="numeric" value="${x.barcode}">
+   <label class="mini">その他残高</label><input id="bc_other" type="number" inputmode="numeric" value="${x.other}">
+   <label class="mini">メモ</label><input id="bc_note" value="${x.note.replace(/"/g,"&quot;")}">
+   <button class="primary" onclick="saveBalanceCheck()">この月の残高を保存</button>
+ `);
+}
+function saveBalanceCheck(){
+ d.balanceChecks[viewKey]={
+   bank:Number(bc_bank.value)||0,
+   cash:Number(bc_cash.value)||0,
+   barcode:Number(bc_barcode.value)||0,
+   other:Number(bc_other.value)||0,
+   note:bc_note.value||"",
+   updatedAt:new Date().toISOString()
+ };
+ save();closeModal();render();toastMsg("残高を保存しました");
+}
 function renderHome(){
  ensureCycle(viewKey);let c=cycleFromKey(viewKey),inc=incomeTotal(viewKey),bt=budgetTotal(viewKey),st=savingMonthlyTotal(viewKey),gt=goalMonthlyTotal(viewKey),alloc=bt+st+gt,used=expenses(viewKey).filter(e=>e.type==="budget").reduce((a,e)=>a+Number(e.amount||0),0);
  period.innerHTML=`<button class="secondary" onclick="moveMonth(-1)">‹</button>　${c.label}　<button class="secondary" onclick="moveMonth(1)">›</button>`;
  document.getElementById("home").innerHTML=`
- <div class="card hero"><span class="badge">振り分け家計簿 v18</span><div class="label" style="margin-top:12px">今月の収入</div><div class="big">${yen(inc)}</div>
+ <div class="card hero"><span class="badge">振り分け家計簿 v19</span><div class="label" style="margin-top:12px">今月の収入</div><div class="big">${yen(inc)}</div>
  <div class="row mini"><span>振り分け済 ${yen(alloc)}</span><span>今月未振分 ${yen(unallocatedForMonth(viewKey))}</span></div>
  <div class="progress"><i style="width:${Math.min(100,inc?alloc/inc*100:0)}%"></i></div></div>
+ <div class="card">
+   <div class="row"><div><div class="label">毎月10日の残高確認</div><div class="amount">${yen(balanceTotal(viewKey))}</div></div><button class="secondary" onclick="openBalanceCheck()">入力・修正</button></div>
+   <div class="grid" style="margin-top:12px">
+     <div><div class="label">口座</div><b>${yen(balanceCheck(viewKey).bank)}</b></div>
+     <div><div class="label">現金</div><b>${yen(balanceCheck(viewKey).cash)}</b></div>
+     <div><div class="label">バーコード決済</div><b>${yen(balanceCheck(viewKey).barcode)}</b></div>
+     <div><div class="label">その他</div><b>${yen(balanceCheck(viewKey).other)}</b></div>
+   </div>
+   ${balanceCheck(viewKey).note?`<div class="mini muted" style="margin-top:10px">メモ：${balanceCheck(viewKey).note}</div>`:""}
+ </div>
  <div class="grid">
    <div class="card"><div class="label">通常予算</div><div class="amount">${yen(bt)}</div><div class="mini muted">残り ${yen(bt-used)}</div></div>
    <div class="card"><div class="label">積立残高</div><div class="amount">${yen(savingBalanceTotal(viewKey))}</div><div class="mini muted">今月 +${yen(st)}</div></div>
@@ -260,7 +310,10 @@ function renderHistory(){
      </div>`).join(""):`<div class="muted mini">この期間の支出はありません。</div>`}
  </div>`;
 }
-function renderSettings(){document.getElementById("settings").innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><span class="badge">振り分け家計簿 v18</span><label class="mini" style="display:block;margin-top:14px">毎月の基本収入（参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div>
+function renderSettings(){document.getElementById("settings").innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><span class="badge">振り分け家計簿 v19</span><label class="mini" style="display:block;margin-top:14px">毎月の基本収入（参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div>
+<div class="card"><h2>📅 毎月10日の残高確認</h2>
+<div class="notice">口座・現金・バーコード決済・その他の「実際の残高」を月ごとに保存します。食費などをバーコード決済へ先に入金している場合も、翌月は実際のバーコード残高を入力して管理できます。</div>
+<button class="primary" onclick="openBalanceCheck()">この月の残高を入力</button></div>
 <div class="card"><h2>🗂️ 予算カテゴリ</h2>${d.categories.map((x,i)=>`<div class="cat row"><span>${x[0]}</span><div><button class="secondary" onclick="editBudget(${i})">変更</button> <button class="danger" onclick="deleteCategory(${i})">削除</button></div></div>`).join("")}<button class="primary" onclick="addCategory()">＋ カテゴリを追加</button></div>
 <div class="card"><h2>💾 データ</h2><button class="primary" onclick="backup()">バックアップを書き出す</button><br><br><button class="secondary" onclick="restoreFile()">バックアップを復元</button><input id="restoreInput" type="file" accept=".json" style="display:none"></div>
 <div class="card"><h2>🧾 支出履歴</h2><div class="mini muted" style="margin-bottom:10px">${expenses(viewKey).length}件の支出があります</div><button class="primary" onclick="openHistory()">今月の履歴を見る</button></div>`}
