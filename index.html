@@ -1,113 +1,251 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f7e9e7"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="わたしの家計簿"><link rel="manifest" href="manifest.json"><title>わたしの家計簿</title>
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7e9e7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="わたしの家計簿">
+<link rel="manifest" href="manifest.json">
+<title>わたしの家計簿</title>
 <style>
-:root{--bg:#fbf7f5;--card:#fff;--text:#4b4543;--muted:#8b817d;--line:#eee4e0;--a:#c98f8b;--a2:#e9c7c2;--g:#8fae91;--danger:#b96c67}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}.app{max-width:520px;margin:auto;min-height:100vh;padding-bottom:90px}.top{padding:22px 20px 10px}.title{font-size:22px;font-weight:700}.period{font-size:12px;color:var(--muted);margin-top:4px}main{padding:10px 16px}.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:17px;margin-bottom:12px;box-shadow:0 4px 16px #8b817d0b}.hero{background:linear-gradient(135deg,#f4dfdc,#fff)}.label{font-size:12px;color:var(--muted)}.big{font-size:31px;font-weight:800;margin:4px 0 10px}.amount{font-size:21px;font-weight:750;margin-top:4px}.row{display:flex;justify-content:space-between;align-items:center;gap:10px}.mini{font-size:13px}.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cat{padding:10px 0;border-bottom:1px solid var(--line)}.cat:last-child{border-bottom:0}.pill{font-size:11px;padding:4px 8px;border-radius:99px;background:#f5ece9;color:#7b6863}.progress{height:9px;background:#f0e9e6;border-radius:99px;overflow:hidden}.progress i{display:block;height:100%;background:var(--a);border-radius:99px}nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(520px,100%);height:76px;background:#fffffff2;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);z-index:5;padding-bottom:env(safe-area-inset-bottom)}nav button{border:0;background:none;color:var(--muted);font-size:10px}nav button.active{color:var(--a);font-weight:700}.ico{display:block;font-size:20px;margin-bottom:3px}button.primary{background:var(--a);color:#fff;border:0;border-radius:14px;padding:13px 16px;font-weight:700;width:100%}button.secondary{background:#f4ece9;border:0;border-radius:12px;padding:10px 12px;color:#665b58}button.danger{background:#f8e9e7;color:var(--danger);border:0;border-radius:12px;padding:9px 12px}input,select{width:100%;padding:13px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:16px;margin:6px 0 12px;color:var(--text)}h2{font-size:18px;margin:6px 0 14px}.hidden{display:none}.fab{position:fixed;right:max(20px,calc((100vw - 520px)/2 + 20px));bottom:92px;width:56px;height:56px;border:0;border-radius:50%;background:var(--a);color:#fff;font-size:28px;box-shadow:0 8px 24px #8b817d33;z-index:6}.notice{padding:12px;border-radius:14px;background:#f8efed;font-size:12px;line-height:1.6}.chart{height:175px;display:flex;align-items:flex-end;gap:5px;padding:12px 4px 2px;border-bottom:1px solid var(--line)}.barwrap{height:100%;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}.bar{width:70%;max-width:24px;border-radius:7px 7px 2px 2px;background:var(--a2);min-height:2px}.bar.save{background:var(--g)}.barlabel{font-size:9px;color:var(--muted);margin-top:5px}.value{font-size:8px;color:var(--muted);margin-bottom:3px;writing-mode:vertical-rl}.modal{position:fixed;inset:0;background:#0005;z-index:20;display:flex;align-items:flex-end}.sheet{background:#fff;width:100%;max-width:520px;margin:auto;border-radius:22px 22px 0 0;padding:20px;max-height:90vh;overflow:auto}.toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#4b4543;color:#fff;padding:10px 15px;border-radius:99px;z-index:30;font-size:12px}
-</style></head><body><div class="app"><header class="top"><div class="title">わたしの家計簿</div><div class="period" id="period"></div></header>
+:root{--bg:#fbf7f5;--card:#fff;--text:#4b4543;--muted:#8b817d;--line:#eee4e0;--a:#c98f8b;--a2:#e9c7c2;--g:#8fae91;--danger:#b96c67}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
+.app{max-width:520px;margin:auto;min-height:100vh;padding-bottom:96px}.top{padding:22px 20px 10px}.title{font-size:24px;font-weight:800}.period{font-size:13px;color:var(--muted);margin-top:8px}
+main{padding:10px 16px}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:17px;margin-bottom:12px;box-shadow:0 4px 16px #8b817d0b}
+.hero{background:linear-gradient(135deg,#f4dfdc,#fff)}.label{font-size:12px;color:var(--muted)}.big{font-size:31px;font-weight:800;margin:4px 0 10px}.amount{font-size:21px;font-weight:750;margin-top:4px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}.mini{font-size:13px}.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cat{padding:11px 0;border-bottom:1px solid var(--line)}.cat:last-child{border-bottom:0}.pill{font-size:11px;padding:5px 9px;border-radius:99px;background:#f5ece9;color:#7b6863}
+.progress{height:9px;background:#f0e9e6;border-radius:99px;overflow:hidden}.progress i{display:block;height:100%;background:var(--a);border-radius:99px}
+.notice{padding:12px;border-radius:14px;background:#f8efed;font-size:12px;line-height:1.65}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(520px,100%);height:78px;background:#fffffff2;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);z-index:5;padding-bottom:env(safe-area-inset-bottom)}
+nav button{border:0;background:none;color:var(--muted);font-size:10px}nav button.active{color:var(--a);font-weight:700}.ico{display:block;font-size:20px;margin-bottom:3px}
+button.primary{background:var(--a);color:#fff;border:0;border-radius:14px;padding:13px 16px;font-weight:700;width:100%}
+button.secondary{background:#f4ece9;border:0;border-radius:12px;padding:10px 12px;color:#665b58} button.danger{background:#f8e9e7;color:var(--danger);border:0;border-radius:12px;padding:9px 12px}
+input,select{width:100%;padding:13px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:16px;margin:6px 0 12px;color:var(--text)}
+h2{font-size:18px;margin:6px 0 14px}.hidden{display:none}
+.fab{position:fixed;right:max(20px,calc((100vw - 520px)/2 + 20px));bottom:94px;width:56px;height:56px;border:0;border-radius:50%;background:var(--a);color:#fff;font-size:28px;box-shadow:0 8px 24px #8b817d33;z-index:6}
+.modal{position:fixed;inset:0;background:#0005;z-index:20;display:flex;align-items:flex-end}.sheet{background:#fff;width:100%;max-width:520px;margin:auto;border-radius:22px 22px 0 0;padding:20px;max-height:90vh;overflow:auto}
+.toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#4b4543;color:#fff;padding:10px 15px;border-radius:99px;z-index:30;font-size:12px}
+.chart{height:175px;display:flex;align-items:flex-end;gap:5px;padding:12px 4px 2px;border-bottom:1px solid var(--line)}.barwrap{height:100%;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}.bar{width:70%;max-width:24px;border-radius:7px 7px 2px 2px;background:var(--a2);min-height:2px}.bar.save{background:var(--g)}.barlabel{font-size:9px;color:var(--muted);margin-top:5px}.value{font-size:8px;color:var(--muted);margin-bottom:3px;writing-mode:vertical-rl}
+.badge{display:inline-block;background:#efe2df;border-radius:99px;padding:6px 10px;font-size:11px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top"><div class="title">わたしの家計簿</div><div class="period" id="period"></div></header>
 <main id="home"></main><main id="budget" class="hidden"></main><main id="saving" class="hidden"></main><main id="annual" class="hidden"></main><main id="history" class="hidden"></main><main id="settings" class="hidden"></main>
-<button class="fab" onclick="openExpense()">＋</button><nav>
-<button onclick="tab('home',this)" class="active"><span class="ico">🏠</span>ホーム</button><button onclick="tab('budget',this)"><span class="ico">💰</span>予算</button><button onclick="tab('saving',this)"><span class="ico">🏦</span>積立</button><button onclick="tab('annual',this)"><span class="ico">📊</span>年間</button><button onclick="tab('settings',this)"><span class="ico">⚙️</span>設定</button></nav></div>
+<button class="fab" onclick="openExpense()">＋</button>
+<nav>
+<button onclick="tab('home',this)" class="active"><span class="ico">🏠</span>ホーム</button>
+<button onclick="tab('budget',this)"><span class="ico">💰</span>予算</button>
+<button onclick="tab('saving',this)"><span class="ico">🏦</span>積立・貯金</button>
+<button onclick="tab('annual',this)"><span class="ico">📊</span>年間</button>
+<button onclick="tab('settings',this)"><span class="ico">⚙️</span>設定</button>
+</nav></div>
 <div id="modal"></div><div id="toast"></div>
+
 <script>
 const KEY="myBudgetAppV3";
-const fresh={version:3,startDay:10,baseIncome:190000,bank:200000,categories:[["食費",20000],["交通費",8000],["交際費",20000],["美容",0],["コスメ",5000],["服・靴",10000],["日用品",5000],["医療",5000],["趣味",5000],["旅行",0],["その他",7000]],savings:[["美容積立",7700,0],["旅行積立",10000,0],["プレゼント積立",3000,0]],incomes:[],expenses:[],cycles:{}};
-let d=JSON.parse(localStorage.getItem(KEY)||"null")||fresh; migrate(); ensureCurrentCycle(); save(); let viewKey=current().key;
-function migrate(){d.version=3;d.cycles=d.cycles||{};d.incomes=d.incomes||[];d.expenses=d.expenses||[];d.savings=d.savings||[];d.categories=d.categories||[];d.budgetOverrides=d.budgetOverrides||{}}
-function save(){localStorage.setItem(KEY,JSON.stringify(d))}
-function yen(n){return"¥"+Math.round(n).toLocaleString("ja-JP")}
+const APP_VERSION=14;
+const fresh={
+ version:APP_VERSION,startDay:10,baseIncome:190000,bank:0,
+ categories:[["食費",20000],["交通費",8000],["交際費",20000],["美容",0],["コスメ",5000],["服・靴",10000],["日用品",5000],["医療",5000],["趣味",5000],["旅行",0],["その他",7000]],
+ savings:[["美容積立",7700,0],["旅行積立",10000,0],["プレゼント積立",3000,0]],
+ incomes:[],expenses:[],cycles:{},
+ budgetMonthly:{},budgetForward:{},savingMonthly:{},
+ goalSavings:[],goalSavingMonthly:{}
+};
+let d=JSON.parse(localStorage.getItem(KEY)||"null")||structuredClone(fresh);
+
+function yen(n){return"¥"+Math.round(Number(n)||0).toLocaleString("ja-JP")}
 function dateISO(x){return new Date(x.getFullYear(),x.getMonth(),x.getDate()).toISOString().slice(0,10)}
-function cycleForDate(date){let y=date.getFullYear(),m=date.getMonth(),day=date.getDate();if(day<d.startDay)m--;let start=new Date(y,m,d.startDay),end=new Date(y,m+1,d.startDay);return{start,end,key:`${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,"0")}`,label:`${start.getMonth()+1}月${d.startDay}日〜${end.getMonth()+1}月${d.startDay-1}日`}}
+function cycleForDate(date){
+ let y=date.getFullYear(),m=date.getMonth(),day=date.getDate();
+ if(day<d.startDay)m--;
+ let start=new Date(y,m,d.startDay),end=new Date(y,m+1,d.startDay);
+ return{start,end,key:`${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,"0")}`,label:`${start.getMonth()+1}月${d.startDay}日〜${end.getMonth()+1}月${d.startDay-1}日`}
+}
 function keyForDate(s){return cycleForDate(new Date(s+"T12:00:00")).key}
 function current(){return cycleForDate(new Date())}
-function viewCycle(){let [y,m]=viewKey.split("-").map(Number);return cycleForDate(new Date(y,m-1,d.startDay))}
+function cycleFromKey(key){let[y,m]=key.split("-").map(Number);return cycleForDate(new Date(y,m-1,d.startDay))}
+function monthOffset(key,delta){let[y,m]=key.split("-").map(Number),x=new Date(y,m-1+delta,1);return`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`}
+
+function migrate(){
+ d.version=APP_VERSION;
+ d.startDay=Number(d.startDay||10); d.baseIncome=Number(d.baseIncome||0);
+ d.categories=Array.isArray(d.categories)?d.categories:[];
+ d.savings=Array.isArray(d.savings)?d.savings:[];
+ d.incomes=Array.isArray(d.incomes)?d.incomes:[];
+ d.expenses=Array.isArray(d.expenses)?d.expenses:[];
+ d.cycles=d.cycles||{};
+ d.budgetMonthly=d.budgetMonthly||{};
+ d.budgetForward=d.budgetForward||{};
+ d.savingMonthly=d.savingMonthly||d.savingOverrides||{};
+ d.goalSavingMonthly=d.goalSavingMonthly||d.goalSavingOverrides||{};
+ d.goalSavings=Array.isArray(d.goalSavings)?d.goalSavings:[];
+
+ // 旧版の月別予算は「その月だけ」の設定として保全
+ if(d.budgetOverrides&&!d._v14BudgetMigrated){
+   Object.keys(d.budgetOverrides).forEach(k=>{
+     d.budgetMonthly[k]=d.budgetMonthly[k]||{};
+     Object.assign(d.budgetMonthly[k],d.budgetOverrides[k]||{});
+   });
+   d._v14BudgetMigrated=true;
+ }
+ // 積立をオブジェクトへ正規化
+ let firstKey=Object.keys(d.cycles).sort()[0]||current().key;
+ d.savings=d.savings.map((x,i)=>{
+   if(Array.isArray(x))return{id:"s"+i+"_"+x[0],name:String(x[0]),base:Number(x[1]||0),initial:Number(x[2]||0),startKey:x[3]||firstKey};
+   return{id:x.id||("s"+i+"_"+x.name),name:String(x.name||"積立"),base:Number(x.base||x.monthly||0),initial:Number(x.initial||0),startKey:x.startKey||firstKey};
+ });
+ // 目的別貯金を正規化。旧bank残高があれば最初の「貯金」に移す
+ d.goalSavings=d.goalSavings.map((x,i)=>{
+   if(Array.isArray(x))return{id:"g"+i+"_"+x[0],name:String(x[0]),base:Number(x[1]||0),initial:Number(x[2]||0),startKey:x[3]||current().key};
+   return{id:x.id||("g"+i+"_"+x.name),name:String(x.name||"貯金"),base:Number(x.base||0),initial:Number(x.initial||0),startKey:x.startKey||current().key};
+ });
+ if(!d._v14BankMigrated&&Number(d.bank||0)>0){
+   if(!d.goalSavings.length)d.goalSavings.push({id:"legacy_bank",name:"貯金",base:0,initial:Number(d.bank),startKey:current().key});
+   d._v14BankMigrated=true;
+ }
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(d))}
+function ensureCycle(key=current().key){if(!d.cycles[key])d.cycles[key]={createdAt:new Date().toISOString()}}
+migrate();ensureCycle();save();
+let viewKey=current().key;
+
 function expenses(key=viewKey){return d.expenses.filter(e=>keyForDate(e.date)===key)}
 function incomes(key=viewKey){return d.incomes.filter(e=>keyForDate(e.date)===key)}
-function ensureCurrentCycle(){let c=current();if(!d.cycles[c.key]){d.cycles[c.key]={createdAt:new Date().toISOString(),carried:{},closed:false};if(d.cycles[previousKey(c.key)]) d.cycles[c.key].carried=calculateCarry(previousKey(c.key))}}
-function previousKey(key){let [y,m]=key.split("-").map(Number),x=new Date(y,m-2,d.startDay);return`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`}
-function calculateCarry(key){let c=d.cycles[key];if(!c||c.closed)return{};let out={};d.categories.forEach(([name,budget])=>{let used=d.expenses.filter(e=>e.type==="budget"&&keyForDate(e.date)===key&&e.cat===name).reduce((a,e)=>a+e.amount,0);let rem=Math.max(0,baseBudgetFor(name,key)-used);if(rem)out[name]=rem});return out}
-function baseBudgetFor(name,key=viewKey){
- let exact=d.budgetOverrides[key]?.[name];
- if(exact!==undefined)return exact;
- let candidates=Object.keys(d.budgetOverrides||{}).filter(k=>k<=key&&d.budgetOverrides[k]?.[name]!==undefined).sort();
- if(candidates.length)return d.budgetOverrides[candidates[candidates.length-1]][name];
- let cat=d.categories.find(x=>x[0]===name); return cat?cat[1]:0;
+function incomeTotal(key=viewKey){return incomes(key).reduce((a,e)=>a+Number(e.amount||0),0)}
+function expenseTotal(key=viewKey){return expenses(key).reduce((a,e)=>a+Number(e.amount||0),0)}
+function budgetSpent(name,key=viewKey){return d.expenses.filter(e=>e.type==="budget"&&e.cat===name&&keyForDate(e.date)===key).reduce((a,e)=>a+Number(e.amount||0),0)}
+function sourceSpent(type,name,key=viewKey){return d.expenses.filter(e=>e.type===type&&e.cat===name&&keyForDate(e.date)===key).reduce((a,e)=>a+Number(e.amount||0),0)}
+
+function baseCategory(name){let x=d.categories.find(v=>v[0]===name);return x?Number(x[1]||0):0}
+function budgetFor(name,key=viewKey){
+ let one=d.budgetMonthly?.[key]?.[name];
+ if(one!==undefined)return Number(one);
+ let rules=(d.budgetForward?.[name]||[]).filter(r=>r.from<=key).sort((a,b)=>a.from.localeCompare(b.from));
+ if(rules.length)return Number(rules[rules.length-1].amount);
+ return baseCategory(name);
 }
-function cycleBudgetTotal(key=viewKey){let c=d.cycles[key]||{carried:{}};return d.categories.reduce((a,x)=>a+baseBudgetFor(x[0],key)+(c.carried[x[0]]||0),0)}
-function incomeTotal(key=viewKey){let arr=incomes(key);return arr.reduce((a,e)=>a+e.amount,0)}
-function expenseTotal(key=viewKey){return expenses(key).reduce((a,e)=>a+e.amount,0)}
-function budgetSpent(name,key=viewKey){return d.expenses.filter(e=>e.type==="budget"&&keyForDate(e.date)===key&&e.cat===name).reduce((a,e)=>a+e.amount,0)}
-function savingSpent(name,key=viewKey){return d.expenses.filter(e=>e.type==="saving"&&keyForDate(e.date)===key&&e.cat===name).reduce((a,e)=>a+e.amount,0)}
-function savingMonthlyTotal(){return d.savings.reduce((a,x)=>a+x[1],0)}
-function totalSavedFromIncome(key){let inc=incomeTotal(key),out=expenseTotal(key);return Math.max(0,inc-out)}
-function renderHome(){ensureCurrentCycle();let c=viewCycle(),inc=incomeTotal(),bt=cycleBudgetTotal(),st=savingMonthlyTotal(),bu=expenses(viewKey).filter(e=>e.type==="budget").reduce((a,e)=>a+e.amount,0),remain=bt-bu,allocated=bt+st;document.getElementById("period").innerHTML=`<button class="secondary" onclick="moveMonth(-1)">‹</button>　${c.label}　<button class="secondary" onclick="moveMonth(1)">›</button>`;
-document.getElementById("home").innerHTML=`<div class="card hero"><div class="label">今月の収入</div><div class="big">${yen(inc)}</div><div class="row mini"><span>予算＋積立 ${yen(allocated)}</span><span>未振分 ${yen(inc-allocated)}</span></div><div class="progress"><i style="width:${Math.min(100,inc?allocated/inc*100:0)}%"></i></div></div>
-<div class="card"><div class="row"><span class="mini muted">表示中：${c.label}</span><button class="secondary" onclick="goCurrent()">今月へ</button></div></div><div class="grid"><div class="card"><div class="label">予算合計</div><div class="amount">${yen(bt)}</div><div class="muted mini">残り ${yen(remain)}</div></div><div class="card"><div class="label">積立合計</div><div class="amount">${yen(st)}</div></div></div>
-<div class="card"><div class="row"><h2>予算の残り</h2><span class="pill">繰越 ${yen(Object.values(d.cycles[c.key].carried).reduce((a,x)=>a+x,0))}</span></div>${d.categories.map(x=>{let total=baseBudgetFor(x[0],viewKey)+(d.cycles[c.key].carried[x[0]]||0),u=budgetSpent(x[0]);return`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(total-u)}</b></div><div class="muted mini">予算 ${yen(total)} / 使用 ${yen(u)}</div></div>`}).join("")}</div>
-<div class="card"><h2>🏦 積立</h2>${d.savings.map(x=>`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(x[2]+x[1]-savingSpent(x[0]))}</b></div><div class="muted mini">毎月 ${yen(x[1])} / 今月使用 ${yen(savingSpent(x[0]))}</div></div>`).join("")}</div>
-<div class="card"><div class="row"><div><div class="label">現在の貯金</div><div class="amount">${yen(d.bank)}</div></div><div><div class="label">今月の支出</div><div class="amount">${yen(expenseTotal())}</div></div></div></div>
-<div class="card"><h2>収入</h2>${incomes().length?incomes().map(e=>`<div class="cat row"><span>${e.memo||"収入"}<small class="muted"> ${e.date}</small></span><b>${yen(e.amount)}</b></div>`).join(""):`<div class="muted mini">収入を登録するとここに表示されます。</div>`}<button class="primary" onclick="openIncome()">＋ 収入を追加</button></div>`}
-function renderBudget(){let c=viewCycle();document.getElementById("budget").innerHTML=`<div class="card"><h2>💰 予算</h2><div class="notice">毎月10日に新しい家計期間を自動作成。前月の未使用予算は自動で繰り越します。</div>${d.categories.map((x,i)=>`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(x[1]+(d.cycles[c.key].carried[x[0]]||0)-budgetSpent(x[0]))}</b></div><div class="row mini muted"><span>基本 ${yen(baseBudgetFor(x[0],viewKey))} / 繰越 ${yen(d.cycles[c.key].carried[x[0]]||0)}</span><button class="secondary" onclick="editBudget(${i})">変更</button></div></div>`).join("")}</div><div class="card"><h2>締め処理</h2><div class="notice">現在の期間を締めると未使用分を次の10日から自動で繰り越します。通常は何もしなくても10日に新しい期間が作られます。</div><button class="primary" onclick="closeCurrent()">この月を締める</button></div>`}
-function renderSaving(){document.getElementById("saving").innerHTML=`<div class="card"><h2>🏦 目的別積立</h2>${d.savings.map((x,i)=>`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(x[2]+x[1]-savingSpent(x[0]))}</b></div><div class="mini muted">毎月 ${yen(x[1])} / 今月使用 ${yen(savingSpent(x[0]))}</div><div style="display:flex;gap:8px;margin-top:8px"><button class="secondary" onclick="editSaving(${i})">変更</button><button class="danger" onclick="deleteSaving(${i})">削除</button></div></div>`).join("")}<button class="primary" onclick="addSaving()">＋ 積立を追加</button></div><div class="card"><h2>💵 貯金</h2><div class="label">現在の貯金</div><div class="big">${yen(d.bank)}</div><div class="muted mini">今月の収入−支出の参考額：${yen(totalSavedFromIncome())}</div><button class="secondary" onclick="editBank()">貯金額を変更</button></div>`}
+function budgetTotal(key=viewKey){return d.categories.reduce((a,x)=>a+budgetFor(x[0],key),0)}
+
+function savingById(id){return d.savings.find(x=>x.id===id)}
+function savingAmount(id,key=viewKey){let s=savingById(id);if(!s)return 0;let v=d.savingMonthly?.[key]?.[id];return v===undefined?Number(s.base||0):Number(v)}
+function sumMonths(start,key,fn){if(start>key)return 0;let total=0,k=start,guard=0;while(k<=key&&guard++<600){total+=Number(fn(k)||0);k=monthOffset(k,1)}return total}
+function savingBalance(id,key=viewKey){let s=savingById(id);if(!s)return 0;let add=Number(s.initial||0)+sumMonths(s.startKey,key,k=>savingAmount(id,k));let spent=d.expenses.filter(e=>e.type==="saving"&&e.cat===id&&keyForDate(e.date)<=key).reduce((a,e)=>a+Number(e.amount||0),0);return add-spent}
+function savingMonthlyTotal(key=viewKey){return d.savings.reduce((a,s)=>a+savingAmount(s.id,key),0)}
+function savingBalanceTotal(key=viewKey){return d.savings.reduce((a,s)=>a+savingBalance(s.id,key),0)}
+
+function goalById(id){return d.goalSavings.find(x=>x.id===id)}
+function goalAmount(id,key=viewKey){let g=goalById(id);if(!g)return 0;let v=d.goalSavingMonthly?.[key]?.[id];return v===undefined?Number(g.base||0):Number(v)}
+function goalBalance(id,key=viewKey){let g=goalById(id);if(!g)return 0;let add=Number(g.initial||0)+sumMonths(g.startKey,key,k=>goalAmount(id,k));let spent=d.expenses.filter(e=>e.type==="goal"&&e.cat===id&&keyForDate(e.date)<=key).reduce((a,e)=>a+Number(e.amount||0),0);return add-spent}
+function goalMonthlyTotal(key=viewKey){return d.goalSavings.reduce((a,g)=>a+goalAmount(g.id,key),0)}
+function goalBalanceTotal(key=viewKey){return d.goalSavings.reduce((a,g)=>a+goalBalance(g.id,key),0)}
+
+function cycleKeysThrough(key){
+ let set=new Set(Object.keys(d.cycles||{})); set.add(key);
+ d.incomes.forEach(e=>set.add(keyForDate(e.date))); d.expenses.forEach(e=>set.add(keyForDate(e.date)));
+ Object.keys(d.budgetMonthly||{}).forEach(k=>set.add(k)); Object.keys(d.savingMonthly||{}).forEach(k=>set.add(k)); Object.keys(d.goalSavingMonthly||{}).forEach(k=>set.add(k));
+ return [...set].filter(k=>k<=key).sort();
+}
+function unallocatedForMonth(key){
+ let inc=incomeTotal(key);
+ return Math.max(0,inc-budgetTotal(key)-savingMonthlyTotal(key)-goalMonthlyTotal(key));
+}
+function unallocatedBalance(key=viewKey){
+ let add=cycleKeysThrough(key).reduce((a,k)=>a+unallocatedForMonth(k),0);
+ let spent=d.expenses.filter(e=>e.type==="unallocated"&&keyForDate(e.date)<=key).reduce((a,e)=>a+Number(e.amount||0),0);
+ return add-spent;
+}
+
+function renderHome(){
+ ensureCycle(viewKey);let c=cycleFromKey(viewKey),inc=incomeTotal(viewKey),bt=budgetTotal(viewKey),st=savingMonthlyTotal(viewKey),gt=goalMonthlyTotal(viewKey),alloc=bt+st+gt,used=expenses(viewKey).filter(e=>e.type==="budget").reduce((a,e)=>a+Number(e.amount||0),0);
+ period.innerHTML=`<button class="secondary" onclick="moveMonth(-1)">‹</button>　${c.label}　<button class="secondary" onclick="moveMonth(1)">›</button>`;
+ home.innerHTML=`
+ <div class="card hero"><span class="badge">振り分け家計簿 v14</span><div class="label" style="margin-top:12px">今月の収入</div><div class="big">${yen(inc)}</div>
+ <div class="row mini"><span>振り分け済 ${yen(alloc)}</span><span>今月未振分 ${yen(unallocatedForMonth(viewKey))}</span></div>
+ <div class="progress"><i style="width:${Math.min(100,inc?alloc/inc*100:0)}%"></i></div></div>
+ <div class="grid">
+   <div class="card"><div class="label">通常予算</div><div class="amount">${yen(bt)}</div><div class="mini muted">残り ${yen(bt-used)}</div></div>
+   <div class="card"><div class="label">積立残高</div><div class="amount">${yen(savingBalanceTotal(viewKey))}</div><div class="mini muted">今月 +${yen(st)}</div></div>
+ </div>
+ <div class="grid">
+   <div class="card"><div class="label">目的別貯金</div><div class="amount">${yen(goalBalanceTotal(viewKey))}</div><div class="mini muted">今月 +${yen(gt)}</div></div>
+   <div class="card"><div class="label">未振分金残高</div><div class="amount">${yen(unallocatedBalance(viewKey))}</div></div>
+ </div>
+ <div class="card"><h2>今月の振り分け</h2>
+   <div class="cat row"><span>通常予算</span><b>${yen(bt)}</b></div>
+   <div class="cat row"><span>積立</span><b>${yen(st)}</b></div>
+   <div class="cat row"><span>目的別貯金</span><b>${yen(gt)}</b></div>
+   <div class="cat row"><span>未振分</span><b>${yen(unallocatedForMonth(viewKey))}</b></div>
+ </div>
+ <div class="card"><h2>収入</h2>${incomes(viewKey).length?incomes(viewKey).map(e=>`<div class="cat row"><span>${e.memo||"収入"} <small class="muted">${e.date}</small></span><b>${yen(e.amount)}</b></div>`).join(""):`<div class="muted mini">この期間の収入はまだありません。</div>`}<button class="primary" onclick="openIncome()">＋ 収入を追加</button></div>`;
+}
+function renderBudget(){
+ budget.innerHTML=`<div class="card"><h2>💰 通常予算</h2><div class="notice">通常予算は毎月リセット。余った分は翌月へ繰り越しません。</div>
+ ${d.categories.map((x,i)=>{let b=budgetFor(x[0],viewKey),u=budgetSpent(x[0],viewKey);return`<div class="cat"><div class="row"><span>${x[0]}</span><b>${yen(b-u)}</b></div><div class="row mini muted"><span>今月 ${yen(b)} / 使用 ${yen(u)}</span><button class="secondary" onclick="editBudget(${i})">変更</button></div></div>`}).join("")}</div>`;
+}
+function renderSaving(){
+ saving.innerHTML=`
+ <div class="card"><h2>🏦 積立</h2><div class="notice">使わない分は自然に翌月へ残り、毎月の積立額が加算されます。</div>
+ ${d.savings.map((s,i)=>`<div class="cat"><div class="row"><span>${s.name}</span><b>${yen(savingBalance(s.id,viewKey))}</b></div><div class="mini muted">今月 +${yen(savingAmount(s.id,viewKey))} / 今月支出 ${yen(sourceSpent("saving",s.id,viewKey))}</div><div style="display:flex;gap:8px;margin-top:8px"><button class="secondary" onclick="editSaving(${i})">変更</button><button class="danger" onclick="deleteSaving(${i})">削除</button></div></div>`).join("")}
+ <button class="primary" onclick="addSaving()">＋ 積立を追加</button></div>
+ <div class="card"><h2>💰 目的別貯金</h2><div class="notice">「免許貯金」「引越し貯金」など、いくつでも作れます。使わない限り残高はそのままです。</div>
+ ${d.goalSavings.length?d.goalSavings.map((g,i)=>`<div class="cat"><div class="row"><span>${g.name}</span><b>${yen(goalBalance(g.id,viewKey))}</b></div><div class="mini muted">今月 +${yen(goalAmount(g.id,viewKey))} / 今月支出 ${yen(sourceSpent("goal",g.id,viewKey))}</div><div style="display:flex;gap:8px;margin-top:8px"><button class="secondary" onclick="editGoal(${i})">変更</button><button class="danger" onclick="deleteGoal(${i})">削除</button></div></div>`).join(""):`<div class="muted mini">まだ目的別貯金がありません。</div>`}
+ <button class="primary" onclick="addGoal()">＋ 貯金を追加</button></div>
+ <div class="card"><h2>🪙 未振分金</h2><div class="label">現在残高</div><div class="big">${yen(unallocatedBalance(viewKey))}</div><div class="mini muted">今月追加 ${yen(unallocatedForMonth(viewKey))}</div></div>`;
+}
 function months12(){let now=current().start,a=[];for(let i=11;i>=0;i--){let x=new Date(now.getFullYear(),now.getMonth()-i,d.startDay);a.push({key:`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`,label:`${x.getMonth()+1}月`})}return a}
-function renderAnnual(){let ms=months12(),rows=ms.map(m=>{let inc=incomeTotal(m.key),ex=expenseTotal(m.key),sv=Math.max(0,inc-ex);return{...m,inc,ex,sv}}),mxE=Math.max(1,...rows.map(x=>x.ex)),mxS=Math.max(1,...rows.map(x=>x.sv));document.getElementById("annual").innerHTML=`<div class="card"><h2>📊 1年間</h2><div class="label">家計期間ごとの収入・支出・貯金</div></div><div class="card"><h2>支出</h2><div class="chart">${rows.map(x=>`<div class="barwrap"><div class="value">${yen(x.ex)}</div><div class="bar" style="height:${Math.max(2,x.ex/mxE*135)}px"></div><div class="barlabel">${x.label}</div></div>`).join("")}</div></div><div class="card"><h2>貯金額</h2><div class="chart">${rows.map(x=>`<div class="barwrap"><div class="value">${yen(x.sv)}</div><div class="bar save" style="height:${Math.max(2,x.sv/mxS*135)}px"></div><div class="barlabel">${x.label}</div></div>`).join("")}</div></div><div class="card"><h2>月別</h2>${rows.map(x=>`<div class="cat"><div class="row"><span>${x.label}</span><b>${yen(x.sv)}</b></div><div class="muted mini">収入 ${yen(x.inc)} / 支出 ${yen(x.ex)}</div></div>`).join("")}</div>`}
-function renderHistory(){let arr=[...expenses(viewKey)].sort((a,b)=>b.date.localeCompare(a.date));document.getElementById("history").innerHTML=`<div class="card"><h2>🧾 ${viewCycle().label} の支出履歴</h2>${arr.length?arr.map((e,i)=>`<div class="cat"><div class="row"><span><b>${e.cat}</b><br><small class="muted">${e.date} ${e.memo||""}</small></span><span><b>${yen(e.amount)}</b><br><button class="secondary" onclick="editExpense('${e.id}')">修正</button> <button class="danger" onclick="deleteExpense('${e.id}')">削除</button></span></div></div>`).join(""):`<div class="muted">まだ支出がありません。</div>`}</div>`}
-function renderSettings(){document.getElementById("settings").innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><label class="mini">毎月の基本収入（記録がない期間の参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div><div class="card"><h2>🗂️ カテゴリ</h2>${d.categories.map((x,i)=>`<div class="cat row"><span>${x[0]}</span><div style="display:flex;gap:8px"><button class="secondary" onclick="editBudget(${i})">変更</button><button class="danger" onclick="deleteCategory(${i})">削除</button></div></div>`).join("")}<button class="primary" onclick="addCategory()">＋ カテゴリを追加</button></div><div class="card"><h2>💾 データ</h2><p class="mini muted">バックアップはJSONファイルとして保存します。復元すると現在のデータが置き換わります。</p><button class="primary" onclick="backup()">バックアップを書き出す</button><br><br><button class="secondary" onclick="restoreFile()">バックアップを復元</button><input id="restoreInput" type="file" accept=".json" style="display:none"></div><div class="card"><h2>🧾 支出履歴</h2><button class="primary" onclick="tab('history',document.querySelectorAll('nav button')[0])">今月の履歴を見る</button></div>`}
-function render(){ensureCurrentCycle();renderHome();renderBudget();renderSaving();renderAnnual();renderHistory();renderSettings()}
-function moveMonth(delta){let [y,m]=viewKey.split("-").map(Number);let x=new Date(y,m-1+delta,d.startDay);viewKey=`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`;if(!d.cycles[viewKey])d.cycles[viewKey]={createdAt:new Date().toISOString(),carried:{},closed:false};render();toast(`${viewCycle().label}を表示`)}
+function renderAnnual(){let rows=months12().map(m=>({ ...m,inc:incomeTotal(m.key),ex:expenseTotal(m.key),save:goalMonthlyTotal(m.key)+savingMonthlyTotal(m.key)})),mx=Math.max(1,...rows.map(x=>x.ex),...rows.map(x=>x.save));annual.innerHTML=`<div class="card"><h2>📊 1年間</h2><div class="label">月ごとの支出と積立・貯金振り分け</div></div><div class="card"><h2>支出</h2><div class="chart">${rows.map(x=>`<div class="barwrap"><div class="value">${yen(x.ex)}</div><div class="bar" style="height:${Math.max(2,x.ex/mx*135)}px"></div><div class="barlabel">${x.label}</div></div>`).join("")}</div></div><div class="card"><h2>積立＋貯金</h2><div class="chart">${rows.map(x=>`<div class="barwrap"><div class="value">${yen(x.save)}</div><div class="bar save" style="height:${Math.max(2,x.save/mx*135)}px"></div><div class="barlabel">${x.label}</div></div>`).join("")}</div></div>`}
+function renderHistory(){let arr=[...expenses(viewKey)].sort((a,b)=>b.date.localeCompare(a.date));history.innerHTML=`<div class="card"><h2>🧾 ${cycleFromKey(viewKey).label}</h2>${arr.length?arr.map(e=>`<div class="cat"><div class="row"><span><b>${displayCat(e)}</b><br><small class="muted">${e.date} ${e.memo||""}</small></span><span><b>${yen(e.amount)}</b><br><button class="secondary" onclick="editExpense('${e.id}')">修正</button> <button class="danger" onclick="deleteExpense('${e.id}')">削除</button></span></div></div>`).join(""):`<div class="muted mini">支出はありません。</div>`}</div>`}
+function renderSettings(){settings.innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><span class="badge">振り分け家計簿 v14</span><label class="mini" style="display:block;margin-top:14px">毎月の基本収入（参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div>
+<div class="card"><h2>🗂️ 予算カテゴリ</h2>${d.categories.map((x,i)=>`<div class="cat row"><span>${x[0]}</span><div><button class="secondary" onclick="editBudget(${i})">変更</button> <button class="danger" onclick="deleteCategory(${i})">削除</button></div></div>`).join("")}<button class="primary" onclick="addCategory()">＋ カテゴリを追加</button></div>
+<div class="card"><h2>💾 データ</h2><button class="primary" onclick="backup()">バックアップを書き出す</button><br><br><button class="secondary" onclick="restoreFile()">バックアップを復元</button><input id="restoreInput" type="file" accept=".json" style="display:none"></div>
+<div class="card"><h2>🧾 支出履歴</h2><button class="primary" onclick="tab('history',null)">今月の履歴を見る</button></div>`}
+function render(){renderHome();renderBudget();renderSaving();renderAnnual();renderHistory();renderSettings()}
+
+function moveMonth(delta){viewKey=monthOffset(viewKey,delta);ensureCycle(viewKey);render()}
 function goCurrent(){viewKey=current().key;render()}
-function tab(id,btn){document.querySelectorAll("main").forEach(x=>x.classList.add("hidden"));document.getElementById(id).classList.remove("hidden");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));if(btn)btn.classList.add("active");document.querySelector(".fab").style.display=["home","history"].includes(id)?"block":"none";if(id==="history")renderHistory()}
+function tab(id,btn){document.querySelectorAll("main").forEach(x=>x.classList.add("hidden"));document.getElementById(id).classList.remove("hidden");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));if(btn)btn.classList.add("active");document.querySelector(".fab").style.display=["home","history"].includes(id)?"block":"none"}
 function openModal(title,body){modal.innerHTML=`<div class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet"><div class="row"><h2>${title}</h2><button class="secondary" onclick="closeModal()">閉じる</button></div>${body}</div></div>`}
 function closeModal(){modal.innerHTML=""}
-function openIncome(editId=null){let e=editId?d.incomes.find(x=>x.id===editId):null;openModal(e?"収入を修正":"収入を追加",`<label class="mini">金額</label><input id="mi_amount" type="number" value="${e?.amount||""}"><label class="mini">日付</label><input id="mi_date" type="date" value="${e?.date||dateISO(new Date())}"><label class="mini">メモ</label><input id="mi_memo" value="${e?.memo||"給料"}"><button class="primary" onclick="${e?`updateIncome('${e.id}')`:"saveIncome()"}">保存</button>`)}
-function saveIncome(){let a=+mi_amount.value;if(!a)return;d.incomes.push({id:crypto.randomUUID(),amount:a,date:mi_date.value,memo:mi_memo.value});save();closeModal();render();toast("収入を登録しました")}
-function updateIncome(id){let e=d.incomes.find(x=>x.id===id);e.amount=+mi_amount.value;e.date=mi_date.value;e.memo=mi_memo.value;save();closeModal();render()}
-function openExpense(editId=null){let e=editId?d.expenses.find(x=>x.id===editId):null;openModal(e?"支出を修正":"支出を追加",`<label class="mini">金額</label><input id="me_amount" type="number" value="${e?.amount||""}"><label class="mini">区分</label><select id="me_type"><option value="budget" ${e?.type==="budget"?"selected":""}>通常予算から</option><option value="saving" ${e?.type==="saving"?"selected":""}>積立から</option></select><label class="mini">カテゴリ</label><select id="me_cat"></select><label class="mini">日付</label><input id="me_date" type="date" value="${e?.date||dateISO(new Date())}"><label class="mini">メモ</label><input id="me_memo" value="${e?.memo||""}"><button class="primary" onclick="${e?`updateExpense('${e.id}')`:"saveExpense()"}">保存</button>`);fillCats(e?.cat);me_type.onchange=()=>fillCats(); }
-function fillCats(selected){me_cat.innerHTML=(me_type.value==="budget"?d.categories.map(x=>`<option ${x[0]===selected?"selected":""}>${x[0]}</option>`):d.savings.map(x=>`<option ${x[0]===selected?"selected":""}>${x[0]}</option>`)).join("")}
-function saveExpense(){let a=+me_amount.value;if(!a)return;d.expenses.push({id:crypto.randomUUID(),amount:a,type:me_type.value,cat:me_cat.value,date:me_date.value,memo:me_memo.value});save();closeModal();render();toast("支出を登録しました")}
-function updateExpense(id){let e=d.expenses.find(x=>x.id===id);e.amount=+me_amount.value;e.type=me_type.value;e.cat=me_cat.value;e.date=me_date.value;e.memo=me_memo.value;save();closeModal();render();toast("支出を修正しました")}
+function toastMsg(t){toast.textContent=t;toast.className="toast";setTimeout(()=>toast.className="",1800)}
+
+function openIncome(id=null){let e=id?d.incomes.find(x=>x.id===id):null;openModal(e?"収入を修正":"収入を追加",`<label class="mini">金額</label><input id="mi_amount" type="number" value="${e?.amount||""}"><label class="mini">日付</label><input id="mi_date" type="date" value="${e?.date||dateISO(new Date())}"><label class="mini">メモ</label><input id="mi_memo" value="${e?.memo||"給料"}"><button class="primary" onclick="${e?`saveIncome('${e.id}')`:"saveIncome()"}">保存</button>`)}
+function saveIncome(id=null){let amount=Number(mi_amount.value);if(!amount)return;if(id){let e=d.incomes.find(x=>x.id===id);e.amount=amount;e.date=mi_date.value;e.memo=mi_memo.value}else d.incomes.push({id:crypto.randomUUID(),amount,date:mi_date.value,memo:mi_memo.value});save();closeModal();render();toastMsg("収入を保存しました")}
+
+function openExpense(id=null){let e=id?d.expenses.find(x=>x.id===id):null;openModal(e?"支出を修正":"支出を追加",`<label class="mini">金額</label><input id="me_amount" type="number" value="${e?.amount||""}"><label class="mini">支出元</label><select id="me_type"><option value="budget">通常予算から</option><option value="saving">積立から</option><option value="goal">目的別貯金から</option><option value="unallocated">未振分金から</option></select><label class="mini">カテゴリ</label><select id="me_cat"></select><label class="mini">日付</label><input id="me_date" type="date" value="${e?.date||dateISO(new Date())}"><label class="mini">メモ</label><input id="me_memo" value="${e?.memo||""}"><button class="primary" onclick="${e?`saveExpense('${e.id}')`:"saveExpense()"}">保存</button>`);me_type.value=e?.type||"budget";fillCats(e?.cat);me_type.onchange=()=>fillCats()}
+function fillCats(selected){let arr=[];if(me_type.value==="budget")arr=d.categories.map(x=>({id:x[0],name:x[0]}));if(me_type.value==="saving")arr=d.savings.map(x=>({id:x.id,name:x.name}));if(me_type.value==="goal")arr=d.goalSavings.map(x=>({id:x.id,name:x.name}));if(me_type.value==="unallocated")arr=[{id:"unallocated",name:"未振分金"}];me_cat.innerHTML=arr.map(x=>`<option value="${x.id}" ${x.id===selected?"selected":""}>${x.name}</option>`).join("")}
+function saveExpense(id=null){let amount=Number(me_amount.value);if(!amount)return;let obj={amount,type:me_type.value,cat:me_cat.value,date:me_date.value,memo:me_memo.value};if(id){Object.assign(d.expenses.find(x=>x.id===id),obj)}else d.expenses.push({id:crypto.randomUUID(),...obj});save();closeModal();render();toastMsg("支出を保存しました")}
 function editExpense(id){openExpense(id)}
-function deleteExpense(id){if(confirm("この支出を削除しますか？")){d.expenses=d.expenses.filter(x=>x.id!==id);save();render();toast("削除しました")}}
-function editBudget(i){
- let name=d.categories[i][0],currentBudget=baseBudgetFor(name,viewKey);
- openModal(`${name}の予算を変更`,`
- <div class="notice">表示中の「${viewCycle().label}」の予算を変更します。</div>
- <label class="mini">予算額</label><input id="eb_amount" type="number" value="${currentBudget}">
- <button class="primary" onclick="applyBudgetChange(${i},'only')">この月だけ反映</button>
- <br><br><button class="secondary" style="width:100%" onclick="applyBudgetChange(${i},'forward')">この月以降に反映</button>`);
-}
-function applyBudgetChange(i,mode){
- let name=d.categories[i][0],amount=+eb_amount.value;if(isNaN(amount)||amount<0)return;
- d.budgetOverrides=d.budgetOverrides||{};
- if(mode==="only"){
-   d.budgetOverrides[viewKey]=d.budgetOverrides[viewKey]||{};
-   d.budgetOverrides[viewKey][name]=amount;
- }else{
-   d.budgetOverrides[viewKey]=d.budgetOverrides[viewKey]||{};
-   d.budgetOverrides[viewKey][name]=amount;
-   Object.keys(d.budgetOverrides).filter(k=>k>viewKey).forEach(k=>{if(d.budgetOverrides[k]&&name in d.budgetOverrides[k])delete d.budgetOverrides[k][name]});
- }
- save();closeModal();render();toast(mode==="only"?"この月だけ変更しました":"この月以降の予算を変更しました");
-}
-function editSaving(i){let n=prompt(`${d.savings[i][0]}の毎月積立額`,d.savings[i][1]);if(n!==null&&!isNaN(+n)){d.savings[i][1]=+n;save();render()}}
-function deleteCategory(i){
- let name=d.categories[i][0];
- if(!confirm(`「${name}」をカテゴリ一覧から削除しますか？\n過去の支出履歴は残ります。`))return;
- d.categories.splice(i,1);
- Object.values(d.cycles||{}).forEach(c=>{if(c.carried)delete c.carried[name]});
- save();render();toast("カテゴリを削除しました");
-}
-function deleteSaving(i){
- let name=d.savings[i][0];
- if(!confirm(`「${name}」を積立一覧から削除しますか？\n過去の支出履歴は残ります。`))return;
- d.savings.splice(i,1);
- save();render();toast("積立を削除しました");
-}
+function deleteExpense(id){if(confirm("この支出を削除しますか？")){d.expenses=d.expenses.filter(x=>x.id!==id);save();render()}}
+
+function editBudget(i){let name=d.categories[i][0],v=budgetFor(name,viewKey);openModal(`${name}の予算`,`<div class="notice">${cycleFromKey(viewKey).label}</div><label class="mini">予算額</label><input id="eb_amount" type="number" value="${v}"><button class="primary" onclick="applyBudget(${i},'only')">この月だけ反映</button><br><br><button class="secondary" style="width:100%" onclick="applyBudget(${i},'forward')">この月以降に反映</button>`)}
+function applyBudget(i,mode){let name=d.categories[i][0],amount=Number(eb_amount.value);if(!Number.isFinite(amount)||amount<0)return;if(mode==="only"){d.budgetMonthly[viewKey]=d.budgetMonthly[viewKey]||{};d.budgetMonthly[viewKey][name]=amount}else{if(d.budgetMonthly[viewKey])delete d.budgetMonthly[viewKey][name];let rules=(d.budgetForward[name]||[]).filter(r=>r.from!==viewKey);rules.push({from:viewKey,amount});d.budgetForward[name]=rules.sort((a,b)=>a.from.localeCompare(b.from))}save();closeModal();render()}
 function addCategory(){let n=prompt("カテゴリ名");if(n){d.categories.push([n,0]);save();render()}}
-function addSaving(){let n=prompt("積立名");if(!n)return;let a=+prompt("毎月の積立額","0")||0;d.savings.push([n,a,0]);save();render()}
-function editBank(){let n=prompt("現在の貯金額",d.bank);if(n!==null&&!isNaN(+n)){d.bank=+n;save();render()}}
-function saveSettings(){d.baseIncome=+baseIncome.value||0;let old=d.startDay;d.startDay=Math.min(28,Math.max(1,+startDay.value||10));if(old!==d.startDay)ensureCurrentCycle();save();render();toast("保存しました")}
-function closeCurrent(){let c=current();if(d.cycles[c.key].closed)return;d.cycles[c.key].carried=calculateCarry(c.key);d.cycles[c.key].closed=true;save();ensureCurrentCycle();render();toast("この月を締めました")}
-function backup(){let blob=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`わたしの家計簿_${current().key}.json`;a.click();URL.revokeObjectURL(url);toast("バックアップを保存しました")}
-function restoreFile(){restoreInput.click();restoreInput.onchange=()=>{let f=restoreInput.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.categories||!x.expenses||!x.cycles)throw 0;if(confirm("現在のデータをバックアップで置き換えますか？")){d=x;save();render();toast("復元しました")}}catch{alert("このバックアップは読み込めませんでした")}};r.readAsText(f)}}
-function toast(t){toastEl=t;toastEl.textContent=t;toastEl.className="toast";setTimeout(()=>toastEl.className="",1800)}
-window.toastEl=document.getElementById("toast");
+function deleteCategory(i){if(confirm(`「${d.categories[i][0]}」を削除しますか？`)){d.categories.splice(i,1);save();render()}}
+
+function editSaving(i){let s=d.savings[i];openModal(`${s.name}の積立額`,`<div class="notice">${cycleFromKey(viewKey).label}だけ変更します。過去・未来の月は変わりません。</div><input id="es_amount" type="number" value="${savingAmount(s.id,viewKey)}"><button class="primary" onclick="applySaving(${i})">この月だけ反映</button>`)}
+function applySaving(i){let s=d.savings[i],amount=Number(es_amount.value);if(!Number.isFinite(amount)||amount<0)return;d.savingMonthly[viewKey]=d.savingMonthly[viewKey]||{};d.savingMonthly[viewKey][s.id]=amount;save();closeModal();render()}
+function addSaving(){let name=prompt("積立名");if(!name)return;let base=Number(prompt("毎月の積立額","0"))||0;d.savings.push({id:crypto.randomUUID(),name,base,initial:0,startKey:viewKey});save();render()}
+function deleteSaving(i){if(confirm(`「${d.savings[i].name}」を削除しますか？`)){d.savings.splice(i,1);save();render()}}
+
+function editGoal(i){let g=d.goalSavings[i];openModal(`${g.name}の貯金額`,`<div class="notice">${cycleFromKey(viewKey).label}だけ変更します。</div><input id="eg_amount" type="number" value="${goalAmount(g.id,viewKey)}"><button class="primary" onclick="applyGoal(${i})">この月だけ反映</button>`)}
+function applyGoal(i){let g=d.goalSavings[i],amount=Number(eg_amount.value);if(!Number.isFinite(amount)||amount<0)return;d.goalSavingMonthly[viewKey]=d.goalSavingMonthly[viewKey]||{};d.goalSavingMonthly[viewKey][g.id]=amount;save();closeModal();render()}
+function addGoal(){let name=prompt("貯金名（例：免許貯金）");if(!name)return;let base=Number(prompt("毎月の振り分け額","0"))||0;d.goalSavings.push({id:crypto.randomUUID(),name,base,initial:0,startKey:viewKey});save();render()}
+function deleteGoal(i){if(confirm(`「${d.goalSavings[i].name}」を削除しますか？`)){d.goalSavings.splice(i,1);save();render()}}
+
+function displayCat(e){if(e.type==="budget")return e.cat;if(e.type==="saving")return savingById(e.cat)?.name||"積立";if(e.type==="goal")return goalById(e.cat)?.name||"貯金";return"未振分金"}
+function saveSettings(){d.baseIncome=Number(baseIncome.value)||0;d.startDay=Math.min(28,Math.max(1,Number(startDay.value)||10));save();viewKey=current().key;ensureCycle();render();toastMsg("保存しました")}
+function backup(){let blob=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`わたしの家計簿_${current().key}.json`;a.click();URL.revokeObjectURL(url)}
+function restoreFile(){restoreInput.click();restoreInput.onchange=()=>{let f=restoreInput.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.categories||!x.expenses)throw 0;if(confirm("現在のデータをバックアップで置き換えますか？")){d=x;migrate();save();viewKey=current().key;render()}}catch{alert("このバックアップは読み込めませんでした")}};r.readAsText(f)}}
+
 render();
-</script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}</script></body></html>
+</script>
+<script>
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}))}
+</script>
+</body></html>

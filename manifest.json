@@ -1,9 +1,8 @@
 {
   "name": "わたしの家計簿",
   "short_name": "家計簿",
-  "start_url": "./index.html",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#fbf7f5",
-  "theme_color": "#f7e9e7",
-  "lang": "ja"
+  "theme_color": "#f7e9e7"
 }
