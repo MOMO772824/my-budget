@@ -48,14 +48,14 @@ h2{font-size:18px;margin:6px 0 14px}.hidden{display:none}
 
 <script>
 const KEY="myBudgetAppV3";
-const APP_VERSION=19;
+const APP_VERSION=20;
 const fresh={
  version:APP_VERSION,startDay:10,baseIncome:190000,bank:0,
  categories:[["食費",20000],["交通費",8000],["交際費",20000],["美容",0],["コスメ",5000],["服・靴",10000],["日用品",5000],["医療",5000],["趣味",5000],["旅行",0],["その他",7000]],
  savings:[["美容積立",7700,0],["旅行積立",10000,0],["プレゼント積立",3000,0]],
  incomes:[],expenses:[],cycles:{},
  budgetMonthly:{},budgetForward:{},savingMonthly:{},
- goalSavings:[],goalSavingMonthly:{},balanceChecks:{}
+ goalSavings:[],goalSavingMonthly:{},goalDeposits:[],balanceChecks:{}
 };
 let d=JSON.parse(localStorage.getItem(KEY)||"null")||structuredClone(fresh);
 
@@ -100,6 +100,12 @@ function migrate(){
  d.savingMonthly=d.savingMonthly||d.savingOverrides||{};
  d.goalSavingMonthly=d.goalSavingMonthly||d.goalSavingOverrides||{};
  d.goalSavings=Array.isArray(d.goalSavings)?d.goalSavings:[];
+ d.goalDeposits=Array.isArray(d.goalDeposits)?d.goalDeposits:[];
+ if(!d._v20GoalManualMode){
+   d.goalSavings.forEach(g=>{g.manualFrom="2026-09";});
+   d._v20GoalManualMode=true;
+ }
+
  d.balanceChecks=d.balanceChecks||{};
 
  // 旧版の月別予算は「その月だけ」の設定として保全
@@ -172,8 +178,19 @@ function savingMonthlyTotal(key=viewKey){return d.savings.reduce((a,s)=>a+saving
 function savingBalanceTotal(key=viewKey){return d.savings.reduce((a,s)=>a+savingBalance(s.id,key),0)}
 
 function goalById(id){return d.goalSavings.find(x=>x.id===id)}
-function goalAmount(id,key=viewKey){let g=goalById(id);if(!g)return 0;let v=d.goalSavingMonthly?.[key]?.[id];return v===undefined?Number(g.base||0):Number(v)}
-function goalBalance(id,key=viewKey){let g=goalById(id);if(!g)return 0;let add=Number(g.initial||0)+sumMonths(g.startKey,key,k=>goalAmount(id,k));let spent=d.expenses.filter(e=>e.type==="goal"&&e.cat===id&&keyForDate(e.date)<=key).reduce((a,e)=>a+Number(e.amount||0),0);return add-spent}
+function goalAmount(id,key=viewKey){
+ let g=goalById(id);if(!g)return 0;
+ if(key>="2026-09")return 0;
+ let v=d.goalSavingMonthly?.[key]?.[id];
+ return v===undefined?Number(g.base||0):Number(v);
+}
+function goalBalance(id,key=viewKey){
+ let g=goalById(id);if(!g)return 0;
+ let add=Number(g.initial||0)+sumMonths(g.startKey,key,k=>goalAmount(id,k));
+ let deposits=d.goalDeposits.filter(x=>x.goalId===id&&keyForDate(x.date)<=key).reduce((a,x)=>a+Number(x.amount||0),0);
+ let spent=d.expenses.filter(e=>e.type==="goal"&&e.cat===id&&keyForDate(e.date)<=key).reduce((a,e)=>a+Number(e.amount||0),0);
+ return add+deposits-spent;
+}
 function goalMonthlyTotal(key=viewKey){return d.goalSavings.reduce((a,g)=>a+goalAmount(g.id,key),0)}
 function goalBalanceTotal(key=viewKey){return d.goalSavings.reduce((a,g)=>a+goalBalance(g.id,key),0)}
 
@@ -236,7 +253,7 @@ function renderHome(){
  ensureCycle(viewKey);let c=cycleFromKey(viewKey),inc=incomeTotal(viewKey),bt=budgetTotal(viewKey),st=savingMonthlyTotal(viewKey),gt=goalMonthlyTotal(viewKey),alloc=bt+st+gt,used=expenses(viewKey).filter(e=>e.type==="budget").reduce((a,e)=>a+Number(e.amount||0),0);
  period.innerHTML=`<button class="secondary" onclick="moveMonth(-1)">‹</button>　${c.label}　<button class="secondary" onclick="moveMonth(1)">›</button>`;
  document.getElementById("home").innerHTML=`
- <div class="card hero"><span class="badge">振り分け家計簿 v19</span><div class="label" style="margin-top:12px">今月の収入</div><div class="big">${yen(inc)}</div>
+ <div class="card hero"><span class="badge">振り分け家計簿 v20</span><div class="label" style="margin-top:12px">今月の収入</div><div class="big">${yen(inc)}</div>
  <div class="row mini"><span>振り分け済 ${yen(alloc)}</span><span>今月未振分 ${yen(unallocatedForMonth(viewKey))}</span></div>
  <div class="progress"><i style="width:${Math.min(100,inc?alloc/inc*100:0)}%"></i></div></div>
  <div class="card">
@@ -274,8 +291,8 @@ function renderSaving(){
  <div class="card"><h2>🏦 積立</h2><div class="notice">使わない分は自然に翌月へ残り、毎月の積立額が加算されます。</div>
  ${d.savings.map((s,i)=>`<div class="cat"><div class="row"><span>${s.name}</span><b>${yen(savingBalance(s.id,viewKey))}</b></div><div class="mini muted">今月 +${yen(savingAmount(s.id,viewKey))} / 今月支出 ${yen(sourceSpent("saving",s.id,viewKey))}</div><div style="display:flex;gap:8px;margin-top:8px"><button class="secondary" onclick="editSaving(${i})">変更</button><button class="danger" onclick="deleteSaving(${i})">削除</button></div></div>`).join("")}
  <button class="primary" onclick="addSaving()">＋ 積立を追加</button></div>
- <div class="card"><h2>💰 目的別貯金</h2><div class="notice">「免許貯金」「引越し貯金」など、いくつでも作れます。使わない限り残高はそのままです。</div>
- ${d.goalSavings.length?d.goalSavings.map((g,i)=>`<div class="cat"><div class="row"><span>${g.name}</span><b>${yen(goalBalance(g.id,viewKey))}</b></div><div class="mini muted">今月 +${yen(goalAmount(g.id,viewKey))} / 今月支出 ${yen(sourceSpent("goal",g.id,viewKey))}</div><div style="display:flex;gap:8px;margin-top:8px"><button class="secondary" onclick="editGoal(${i})">変更</button><button class="danger" onclick="deleteGoal(${i})">削除</button></div></div>`).join(""):`<div class="muted mini">まだ目的別貯金がありません。</div>`}
+ <div class="card"><h2>💰 目的別貯金</h2><div class="notice">「免許貯金」「引越し貯金」など、いくつでも作れます。2026年9月10日以降は毎月自動では追加せず、入れたい時だけ「＋ 入金」で追加します。現在の残高はそのまま残ります。</div>
+ ${d.goalSavings.length?d.goalSavings.map((g,i)=>`<div class="cat"><div class="row"><span>${g.name}</span><b>${yen(goalBalance(g.id,viewKey))}</b></div><div class="mini muted">${viewKey>="2026-09"?"毎月自動追加なし":`今月 +${yen(goalAmount(g.id,viewKey))}`} / 今月支出 ${yen(sourceSpent("goal",g.id,viewKey))}</div><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="primary" style="width:auto" onclick="addGoalDeposit(${i})">＋ 入金</button><button class="secondary" onclick="renameGoal(${i})">名前変更</button><button class="danger" onclick="deleteGoal(${i})">削除</button></div></div>`).join(""):`<div class="muted mini">まだ目的別貯金がありません。</div>`}
  <button class="primary" onclick="addGoal()">＋ 貯金を追加</button></div>
  <div class="card"><h2>🪙 未振分金</h2><div class="label">現在残高</div><div class="big">${yen(unallocatedBalance(viewKey))}</div><div class="mini muted">今月追加 ${yen(unallocatedForMonth(viewKey))}</div></div>`;
 }
@@ -310,7 +327,7 @@ function renderHistory(){
      </div>`).join(""):`<div class="muted mini">この期間の支出はありません。</div>`}
  </div>`;
 }
-function renderSettings(){document.getElementById("settings").innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><span class="badge">振り分け家計簿 v19</span><label class="mini" style="display:block;margin-top:14px">毎月の基本収入（参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div>
+function renderSettings(){document.getElementById("settings").innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><span class="badge">振り分け家計簿 v20</span><label class="mini" style="display:block;margin-top:14px">毎月の基本収入（参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div>
 <div class="card"><h2>📅 毎月10日の残高確認</h2>
 <div class="notice">口座・現金・バーコード決済・その他の「実際の残高」を月ごとに保存します。食費などをバーコード決済へ先に入金している場合も、翌月は実際のバーコード残高を入力して管理できます。</div>
 <button class="primary" onclick="openBalanceCheck()">この月の残高を入力</button></div>
@@ -363,9 +380,31 @@ function applySaving(i){let s=d.savings[i],amount=Number(es_amount.value);if(!Nu
 function addSaving(){let name=prompt("積立名");if(!name)return;let base=Number(prompt("毎月の積立額","0"))||0;d.savings.push({id:crypto.randomUUID(),name,base,initial:0,startKey:viewKey});save();render()}
 function deleteSaving(i){if(confirm(`「${d.savings[i].name}」を削除しますか？`)){d.savings.splice(i,1);save();render()}}
 
-function editGoal(i){let g=d.goalSavings[i];openModal(`${g.name}の貯金額`,`<div class="notice">${cycleFromKey(viewKey).label}だけ変更します。</div><input id="eg_amount" type="number" value="${goalAmount(g.id,viewKey)}"><button class="primary" onclick="applyGoal(${i})">この月だけ反映</button>`)}
-function applyGoal(i){let g=d.goalSavings[i],amount=Number(eg_amount.value);if(!Number.isFinite(amount)||amount<0)return;d.goalSavingMonthly[viewKey]=d.goalSavingMonthly[viewKey]||{};d.goalSavingMonthly[viewKey][g.id]=amount;save();closeModal();render()}
-function addGoal(){let name=prompt("貯金名（例：免許貯金）");if(!name)return;let base=Number(prompt("毎月の振り分け額","0"))||0;d.goalSavings.push({id:crypto.randomUUID(),name,base,initial:0,startKey:viewKey});save();render()}
+function addGoalDeposit(i){
+ let g=d.goalSavings[i];
+ openModal(`${g.name}へ入金`,`
+   <div class="notice">目的別貯金は2026年9月10日以降、毎月自動では増えません。入れたい時だけここから追加します。</div>
+   <label class="mini">入金額</label><input id="gd_amount" type="number" min="0" value="">
+   <label class="mini">日付</label><input id="gd_date" type="date" value="${dateISO(new Date())}">
+   <label class="mini">メモ</label><input id="gd_memo" value="">
+   <button class="primary" onclick="saveGoalDeposit(${i})">入金する</button>
+ `);
+}
+function saveGoalDeposit(i){
+ let g=d.goalSavings[i],amount=Number(gd_amount.value);
+ if(!Number.isFinite(amount)||amount<=0)return;
+ d.goalDeposits.push({id:crypto.randomUUID(),goalId:g.id,amount,date:gd_date.value,memo:gd_memo.value||""});
+ save();closeModal();render();toastMsg(`${g.name}に${yen(amount)}追加しました`);
+}
+function renameGoal(i){
+ let g=d.goalSavings[i],name=prompt("貯金名",g.name);
+ if(name&&name.trim()){g.name=name.trim();save();render();}
+}
+function addGoal(){
+ let name=prompt("貯金名（例：引越し貯金）");if(!name)return;
+ d.goalSavings.push({id:crypto.randomUUID(),name,base:0,initial:0,startKey:viewKey,manualFrom:"2026-09"});
+ save();render();
+}
 function deleteGoal(i){if(confirm(`「${d.goalSavings[i].name}」を削除しますか？`)){d.goalSavings.splice(i,1);save();render()}}
 
 function displayCat(e){if(e.type==="budget")return e.cat;if(e.type==="saving")return savingById(e.cat)?.name||"積立";if(e.type==="goal")return goalById(e.cat)?.name||"貯金";return"未振分金"}
