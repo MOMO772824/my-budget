@@ -48,7 +48,7 @@ h2{font-size:18px;margin:6px 0 14px}.hidden{display:none}
 
 <script>
 const KEY="myBudgetAppV3";
-const APP_VERSION=21;
+const APP_VERSION=22;
 const fresh={
  version:APP_VERSION,startDay:10,baseIncome:190000,bank:0,
  categories:[["食費",20000],["交通費",8000],["交際費",20000],["美容",0],["コスメ",5000],["服・靴",10000],["日用品",5000],["医療",5000],["趣味",5000],["旅行",0],["その他",7000]],
@@ -102,17 +102,9 @@ function migrate(){
  d.goalSavings=Array.isArray(d.goalSavings)?d.goalSavings:[];
  d.goalDeposits=Array.isArray(d.goalDeposits)?d.goalDeposits:[];
  d.transfers=Array.isArray(d.transfers)?d.transfers:[];
- // v21: v20までの目的別貯金への入金を、未振分金からの振替として結び付ける。
- // migratedDepositId を使い、再読み込みやバックアップ復元でも二重計上しない。
- if(!d._v21GoalDepositLinked){
-   let linked=new Set(d.transfers.filter(t=>t.migratedDepositId).map(t=>t.migratedDepositId));
-   d.goalDeposits.forEach(x=>{
-     if(!linked.has(x.id)){
-       d.transfers.push({id:'mig_'+x.id,fromType:'unallocated',fromId:'unallocated',toType:'goal',toId:x.goalId,amount:Number(x.amount||0),date:x.date,memo:x.memo||'目的別貯金への入金',migratedDepositId:x.id});
-     }
-   });
-   d._v21GoalDepositLinked=true;
- }
+ // v22 migration policy:
+ // v20の既存データは一切再解釈しない。既存の目的別貯金入金・未振分金残高を
+ // アップデートだけで変化させない。振替はv22導入後の新規操作だけ記録する。
 
  if(!d._v20GoalManualMode){
    d.goalSavings.forEach(g=>{g.manualFrom="2026-09";});
@@ -186,7 +178,12 @@ function budgetTotal(key=viewKey){return d.categories.reduce((a,x)=>a+budgetFor(
 function savingById(id){return d.savings.find(x=>x.id===id)}
 function savingAmount(id,key=viewKey){let s=savingById(id);if(!s)return 0;let v=d.savingMonthly?.[key]?.[id];return v===undefined?Number(s.base||0):Number(v)}
 function sumMonths(start,key,fn){if(start>key)return 0;let total=0,k=start,guard=0;while(k<=key&&guard++<600){total+=Number(fn(k)||0);k=monthOffset(k,1)}return total}
-function savingBalance(id,key=viewKey){let s=savingById(id);if(!s)return 0;let add=Number(s.initial||0)+sumMonths(s.startKey,key,k=>savingAmount(id,k));let spent=d.expenses.filter(e=>e.type==="saving"&&e.cat===id&&keyForDate(e.date)<=key).reduce((a,e)=>a+Number(e.amount||0),0);return add-spent+transferIn("saving",id,key)-transferOut("saving",id,key)}
+function savingBalance(id,key=viewKey){
+ let s=savingById(id);if(!s)return 0;
+ let add=Number(s.initial||0)+sumMonths(s.startKey,key,k=>savingAmount(id,k));
+ let spent=d.expenses.filter(e=>e.type==="saving"&&e.cat===id&&keyForDate(e.date)<=key).reduce((a,e)=>a+Number(e.amount||0),0);
+ return add-spent+transferIn("saving",id,key)-transferOut("saving",id,key);
+}
 function savingMonthlyTotal(key=viewKey){return d.savings.reduce((a,s)=>a+savingAmount(s.id,key),0)}
 function savingBalanceTotal(key=viewKey){return d.savings.reduce((a,s)=>a+savingBalance(s.id,key),0)}
 
@@ -200,37 +197,73 @@ function goalAmount(id,key=viewKey){
 function goalBalance(id,key=viewKey){
  let g=goalById(id);if(!g)return 0;
  let add=Number(g.initial||0)+sumMonths(g.startKey,key,k=>goalAmount(id,k));
- let spent=d.expenses.filter(e=>e.type==="goal"&&e.cat===id&&keyForDate(e.date)<=key).reduce((a,e)=>a+Number(e.amount||0),0);
- return add-spent+transferIn("goal",id,key)-transferOut("goal",id,key);
+ let deposits=d.goalDeposits.filter(x=>x.goalId===id&&keyForDate(x.date)<=key)
+   .reduce((a,x)=>a+Number(x.amount||0),0);
+ let spent=d.expenses.filter(e=>e.type==="goal"&&e.cat===id&&keyForDate(e.date)<=key)
+   .reduce((a,e)=>a+Number(e.amount||0),0);
+ return add+deposits-spent+transferIn("goal",id,key)-transferOut("goal",id,key);
 }
 function goalMonthlyTotal(key=viewKey){return d.goalSavings.reduce((a,g)=>a+goalAmount(g.id,key),0)}
 function goalBalanceTotal(key=viewKey){return d.goalSavings.reduce((a,g)=>a+goalBalance(g.id,key),0)}
-function transferIn(type,id,key=viewKey){return d.transfers.filter(t=>t.toType===type&&t.toId===id&&keyForDate(t.date)<=key).reduce((a,t)=>a+Number(t.amount||0),0)}
-function transferOut(type,id,key=viewKey){return d.transfers.filter(t=>t.fromType===type&&t.fromId===id&&keyForDate(t.date)<=key).reduce((a,t)=>a+Number(t.amount||0),0)}
-function sourceBalance(type,id,key=viewKey){if(type==='unallocated')return unallocatedBalance(key);if(type==='saving')return savingBalance(id,key);if(type==='goal')return goalBalance(id,key);return 0}
-function sourceName(type,id){if(type==='unallocated')return '未振分金';if(type==='saving')return savingById(id)?.name||'積立';if(type==='goal')return goalById(id)?.name||'目的別貯金';return ''}
-function allMoneyAccounts(){let a=[{type:'unallocated',id:'unallocated',name:'未振分金'}];d.savings.forEach(x=>a.push({type:'saving',id:x.id,name:'積立：'+x.name}));d.goalSavings.forEach(x=>a.push({type:'goal',id:x.id,name:'貯金：'+x.name}));return a}
-function destinationOptions(ft,fi){return allMoneyAccounts().filter(x=>!(x.type===ft&&x.id===fi))}
-function openTransfer(fromType='unallocated',fromId='unallocated',toType='',toId=''){
- let all=allMoneyAccounts();
- openModal('お金を振替',`
-  <div class="notice">移動元は同額減り、移動先は同額増えます。合計残高は変わりません。</div>
-  <label class="mini">移動元</label><select id="tr_from">${all.map(x=>`<option value="${x.type}|${x.id}" ${(x.type===fromType&&x.id===fromId)?'selected':''}>${x.name}</option>`).join('')}</select>
-  <label class="mini">移動先</label><select id="tr_to"></select>
-  <label class="mini">金額</label><input id="tr_amount" type="number" min="1" inputmode="numeric">
-  <label class="mini">日付</label><input id="tr_date" type="date" value="${dateISO(new Date())}">
-  <label class="mini">メモ</label><input id="tr_memo" value="">
-  <button class="primary" onclick="saveTransfer()">振替する</button>`);
- const refresh=()=>{let [ft,fi]=tr_from.value.split('|');let opts=destinationOptions(ft,fi);tr_to.innerHTML=opts.map(x=>`<option value="${x.type}|${x.id}" ${(x.type===toType&&x.id===toId)?'selected':''}>${x.name}</option>`).join('')};
- tr_from.onchange=refresh;refresh();
+function transferIn(type,id,key=viewKey){
+ return d.transfers.filter(t=>t.toType===type&&t.toId===id&&keyForDate(t.date)<=key)
+   .reduce((a,t)=>a+Number(t.amount||0),0);
+}
+function transferOut(type,id,key=viewKey){
+ return d.transfers.filter(t=>t.fromType===type&&t.fromId===id&&keyForDate(t.date)<=key)
+   .reduce((a,t)=>a+Number(t.amount||0),0);
+}
+function sourceBalance(type,id,key=viewKey){
+ if(type==="unallocated")return unallocatedBalance(key);
+ if(type==="saving")return savingBalance(id,key);
+ if(type==="goal")return goalBalance(id,key);
+ return 0;
+}
+function sourceName(type,id){
+ if(type==="unallocated")return "未振分金";
+ if(type==="saving")return savingById(id)?.name||"積立";
+ if(type==="goal")return goalById(id)?.name||"目的別貯金";
+ return "";
+}
+function allTransferAccounts(){
+ let a=[{type:"unallocated",id:"unallocated",name:"未振分金"}];
+ d.savings.forEach(x=>a.push({type:"saving",id:x.id,name:"積立："+x.name}));
+ d.goalSavings.forEach(x=>a.push({type:"goal",id:x.id,name:"貯金："+x.name}));
+ return a;
+}
+function openTransfer(fromType="unallocated",fromId="unallocated"){
+ let all=allTransferAccounts();
+ openModal("お金を振替",`
+   <div class="notice">移動元は同額減り、移動先は同額増えます。振替だけで全体のお金は増減しません。</div>
+   <label class="mini">移動元</label>
+   <select id="tr_from">${all.map(x=>`<option value="${x.type}|${x.id}" ${(x.type===fromType&&x.id===fromId)?"selected":""}>${x.name}</option>`).join("")}</select>
+   <label class="mini">移動先</label><select id="tr_to"></select>
+   <label class="mini">金額</label><input id="tr_amount" type="number" min="1" inputmode="numeric">
+   <label class="mini">日付</label><input id="tr_date" type="date" value="${dateISO(new Date())}">
+   <label class="mini">メモ</label><input id="tr_memo" value="">
+   <button class="primary" onclick="saveTransfer()">振替する</button>
+ `);
+ const refresh=()=>{
+   let [ft,fi]=tr_from.value.split("|");
+   tr_to.innerHTML=allTransferAccounts().filter(x=>!(x.type===ft&&x.id===fi))
+     .map(x=>`<option value="${x.type}|${x.id}">${x.name}</option>`).join("");
+ };
+ tr_from.onchange=refresh; refresh();
 }
 function saveTransfer(){
- let [ft,fi]=tr_from.value.split('|'),[tt,ti]=tr_to.value.split('|'),amount=Number(tr_amount.value),date=tr_date.value;
- if(!Number.isFinite(amount)||amount<=0){alert('1円以上を入力してください');return}
- if(ft===tt&&fi===ti){alert('同じ場所には振替できません');return}
- let key=keyForDate(date),available=sourceBalance(ft,fi,key);
- if(amount>available){alert(`残高不足です。移動できるのは ${yen(available)} までです。`);return}
- d.transfers.push({id:crypto.randomUUID(),fromType:ft,fromId:fi,toType:tt,toId:ti,amount,date,memo:tr_memo.value||''});save();closeModal();render();toastMsg(`${yen(amount)}を振替しました`)
+ let [ft,fi]=tr_from.value.split("|");
+ let [tt,ti]=tr_to.value.split("|");
+ let amount=Number(tr_amount.value),date=tr_date.value;
+ if(!Number.isFinite(amount)||amount<=0){alert("1円以上を入力してください");return;}
+ if(ft===tt&&fi===ti){alert("同じ場所には振替できません");return;}
+ let key=keyForDate(date);
+ let available=sourceBalance(ft,fi,key);
+ if(amount>available){alert(`残高不足です。移動できるのは ${yen(available)} までです。`);return;}
+ d.transfers.push({
+   id:crypto.randomUUID(),fromType:ft,fromId:fi,toType:tt,toId:ti,
+   amount,date,memo:tr_memo.value||""
+ });
+ save();closeModal();render();toastMsg(`${yen(amount)}を振替しました`);
 }
 
 
@@ -293,7 +326,7 @@ function renderHome(){
  ensureCycle(viewKey);let c=cycleFromKey(viewKey),inc=incomeTotal(viewKey),bt=budgetTotal(viewKey),st=savingMonthlyTotal(viewKey),gt=goalMonthlyTotal(viewKey),alloc=bt+st+gt,used=expenses(viewKey).filter(e=>e.type==="budget").reduce((a,e)=>a+Number(e.amount||0),0);
  period.innerHTML=`<button class="secondary" onclick="moveMonth(-1)">‹</button>　${c.label}　<button class="secondary" onclick="moveMonth(1)">›</button>`;
  document.getElementById("home").innerHTML=`
- <div class="card hero"><span class="badge">振り分け家計簿 v21</span><div class="label" style="margin-top:12px">今月の収入</div><div class="big">${yen(inc)}</div>
+ <div class="card hero"><span class="badge">振り分け家計簿 v22</span><div class="label" style="margin-top:12px">今月の収入</div><div class="big">${yen(inc)}</div>
  <div class="row mini"><span>振り分け済 ${yen(alloc)}</span><span>今月未振分 ${yen(unallocatedForMonth(viewKey))}</span></div>
  <div class="progress"><i style="width:${Math.min(100,inc?alloc/inc*100:0)}%"></i></div></div>
  <div class="card">
@@ -328,14 +361,14 @@ function renderBudget(){
 }
 function renderSaving(){
  document.getElementById("saving").innerHTML=`
- <div class="card"><h2>🔁 お金の振替</h2><div class="notice">未振分金・積立・目的別貯金の間でお金を移動できます。移動元と移動先が必ず同額で増減します。</div><button class="primary" onclick="openTransfer()">お金を振替する</button></div>
- <div class="card"><h2>🏦 積立</h2><div class="notice">使わない分は自然に翌月へ残り、毎月の積立額が加算されます。</div>
- ${d.savings.map((s,i)=>`<div class="cat"><div class="row"><span>${s.name}</span><b>${yen(savingBalance(s.id,viewKey))}</b></div><div class="mini muted">今月 +${yen(savingAmount(s.id,viewKey))} / 今月支出 ${yen(sourceSpent("saving",s.id,viewKey))}</div><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="secondary" onclick="openTransfer('saving','${s.id}')">振替</button><button class="secondary" onclick="editSaving(${i})">変更</button><button class="danger" onclick="deleteSaving(${i})">削除</button></div></div>`).join("")}
+ <div class="card"><h2>🔁 お金の振替</h2><div class="notice">未振分金・積立・目的別貯金の間で移動できます。移動元と移動先は必ず同額で増減します。</div><button class="primary" onclick="openTransfer()">お金を振替する</button></div>
+<div class="card"><h2>🏦 積立</h2><div class="notice">使わない分は自然に翌月へ残り、毎月の積立額が加算されます。</div>
+ ${d.savings.map((s,i)=>`<div class="cat"><div class="row"><span>${s.name}</span><b>${yen(savingBalance(s.id,viewKey))}</b></div><div class="mini muted">今月 +${yen(savingAmount(s.id,viewKey))} / 今月支出 ${yen(sourceSpent("saving",s.id,viewKey))}</div><div style="display:flex;gap:8px;margin-top:8px"><button class="primary" style="width:auto" onclick="openTransfer('unallocated','unallocated')">＋ 振り分け</button><button class="secondary" onclick="openTransfer('saving','${s.id}')">振替</button><button class="secondary" onclick="editSaving(${i})">変更</button><button class="danger" onclick="deleteSaving(${i})">削除</button></div></div>`).join("")}
  <button class="primary" onclick="addSaving()">＋ 積立を追加</button></div>
- <div class="card"><h2>💰 目的別貯金</h2><div class="notice">「免許貯金」「引越し貯金」など、いくつでも作れます。2026年9月10日以降は毎月自動では追加しません。増やす時は「＋ 振り分け」で未振分金などから移動し、減らして積立へ回す時は「振替」を使います。</div>
- ${d.goalSavings.length?d.goalSavings.map((g,i)=>`<div class="cat"><div class="row"><span>${g.name}</span><b>${yen(goalBalance(g.id,viewKey))}</b></div><div class="mini muted">${viewKey>="2026-09"?"毎月自動追加なし":`今月 +${yen(goalAmount(g.id,viewKey))}`} / 今月支出 ${yen(sourceSpent("goal",g.id,viewKey))}</div><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="primary" style="width:auto" onclick="openTransfer('unallocated','unallocated','goal','${g.id}')">＋ 振り分け</button><button class="secondary" onclick="openTransfer('goal','${g.id}')">振替</button><button class="secondary" onclick="renameGoal(${i})">名前変更</button><button class="danger" onclick="deleteGoal(${i})">削除</button></div></div>`).join(""):`<div class="muted mini">まだ目的別貯金がありません。</div>`}
+ <div class="card"><h2>💰 目的別貯金</h2><div class="notice">「免許貯金」「引越し貯金」など、いくつでも作れます。2026年9月10日以降は毎月自動では追加しません。増やす時は未振分金などから「＋ 振り分け」、減らして積立へ回す時は「振替」を使います。</div>
+ ${d.goalSavings.length?d.goalSavings.map((g,i)=>`<div class="cat"><div class="row"><span>${g.name}</span><b>${yen(goalBalance(g.id,viewKey))}</b></div><div class="mini muted">${viewKey>="2026-09"?"毎月自動追加なし":`今月 +${yen(goalAmount(g.id,viewKey))}`} / 今月支出 ${yen(sourceSpent("goal",g.id,viewKey))}</div><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="primary" style="width:auto" onclick="openTransfer('unallocated','unallocated')">＋ 振り分け</button><button class="secondary" onclick="openTransfer('goal','${g.id}')">振替</button><button class="secondary" onclick="renameGoal(${i})">名前変更</button><button class="danger" onclick="deleteGoal(${i})">削除</button></div></div>`).join(""):`<div class="muted mini">まだ目的別貯金がありません。</div>`}
  <button class="primary" onclick="addGoal()">＋ 貯金を追加</button></div>
- <div class="card"><h2>🔁 振替履歴</h2>${d.transfers.length?d.transfers.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,20).map(t=>`<div class="cat"><div class="row"><span>${sourceName(t.fromType,t.fromId)} → ${sourceName(t.toType,t.toId)}<br><small class="muted">${t.date}${t.memo?` ・ ${t.memo}`:""}</small></span><b>${yen(t.amount)}</b></div></div>`).join(""):`<div class="muted mini">まだ振替はありません。</div>`}</div><div class="card"><h2>🪙 未振分金</h2><div class="label">現在残高</div><div class="big">${yen(unallocatedBalance(viewKey))}</div><div class="mini muted">今月追加 ${yen(unallocatedForMonth(viewKey))}</div></div>`;
+ <div class="card"><h2>🪙 未振分金</h2><div class="label">現在残高</div><div class="big">${yen(unallocatedBalance(viewKey))}</div><div class="mini muted">今月追加 ${yen(unallocatedForMonth(viewKey))}</div></div>`;
 }
 function months12(){let now=current().start,a=[];for(let i=11;i>=0;i--){let x=new Date(now.getFullYear(),now.getMonth()-i,d.startDay);a.push({key:`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`,label:`${x.getMonth()+1}月`})}return a}
 function renderAnnual(){let rows=months12().map(m=>({ ...m,inc:incomeTotal(m.key),ex:expenseTotal(m.key),save:goalMonthlyTotal(m.key)+savingMonthlyTotal(m.key)})),mx=Math.max(1,...rows.map(x=>x.ex),...rows.map(x=>x.save));document.getElementById("annual").innerHTML=`<div class="card"><h2>📊 1年間</h2><div class="label">月ごとの支出と積立・貯金振り分け</div></div><div class="card"><h2>支出</h2><div class="chart">${rows.map(x=>`<div class="barwrap"><div class="value">${yen(x.ex)}</div><div class="bar" style="height:${Math.max(2,x.ex/mx*135)}px"></div><div class="barlabel">${x.label}</div></div>`).join("")}</div></div><div class="card"><h2>積立＋貯金</h2><div class="chart">${rows.map(x=>`<div class="barwrap"><div class="value">${yen(x.save)}</div><div class="bar save" style="height:${Math.max(2,x.save/mx*135)}px"></div><div class="barlabel">${x.label}</div></div>`).join("")}</div></div>`}
@@ -368,7 +401,7 @@ function renderHistory(){
      </div>`).join(""):`<div class="muted mini">この期間の支出はありません。</div>`}
  </div>`;
 }
-function renderSettings(){document.getElementById("settings").innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><span class="badge">振り分け家計簿 v21</span><label class="mini" style="display:block;margin-top:14px">毎月の基本収入（参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div>
+function renderSettings(){document.getElementById("settings").innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><span class="badge">振り分け家計簿 v22</span><label class="mini" style="display:block;margin-top:14px">毎月の基本収入（参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div>
 <div class="card"><h2>📅 毎月10日の残高確認</h2>
 <div class="notice">口座・現金・バーコード決済・その他の「実際の残高」を月ごとに保存します。食費などをバーコード決済へ先に入金している場合も、翌月は実際のバーコード残高を入力して管理できます。</div>
 <button class="primary" onclick="openBalanceCheck()">この月の残高を入力</button></div>
@@ -419,7 +452,11 @@ function deleteCategory(i){if(confirm(`「${d.categories[i][0]}」を削除し�
 function editSaving(i){let s=d.savings[i];openModal(`${s.name}の積立額`,`<div class="notice">${cycleFromKey(viewKey).label}だけ変更します。過去・未来の月は変わりません。</div><input id="es_amount" type="number" value="${savingAmount(s.id,viewKey)}"><button class="primary" onclick="applySaving(${i})">この月だけ反映</button>`)}
 function applySaving(i){let s=d.savings[i],amount=Number(es_amount.value);if(!Number.isFinite(amount)||amount<0)return;d.savingMonthly[viewKey]=d.savingMonthly[viewKey]||{};d.savingMonthly[viewKey][s.id]=amount;save();closeModal();render()}
 function addSaving(){let name=prompt("積立名");if(!name)return;let base=Number(prompt("毎月の積立額","0"))||0;d.savings.push({id:crypto.randomUUID(),name,base,initial:0,startKey:viewKey});save();render()}
-function deleteSaving(i){let x=d.savings[i],bal=savingBalance(x.id,viewKey);if(Math.abs(bal)>0.0001){alert(`残高が ${yen(bal)} あります。先に「振替」で残高を0円にしてから削除してください。`);return}if(confirm(`「${x.name}」を削除しますか？`)){d.savings.splice(i,1);save();render()}}
+function deleteSaving(i){
+ let x=d.savings[i],bal=savingBalance(x.id,viewKey);
+ if(Math.abs(bal)>0.0001){alert(`残高が ${yen(bal)} あります。先に振替で0円にしてから削除してください。`);return;}
+ if(confirm(`「${x.name}」を削除しますか？`)){d.savings.splice(i,1);save();render()}
+}
 
 function renameGoal(i){
  let g=d.goalSavings[i],name=prompt("貯金名",g.name);
@@ -430,7 +467,11 @@ function addGoal(){
  d.goalSavings.push({id:crypto.randomUUID(),name,base:0,initial:0,startKey:viewKey,manualFrom:"2026-09"});
  save();render();
 }
-function deleteGoal(i){let x=d.goalSavings[i],bal=goalBalance(x.id,viewKey);if(Math.abs(bal)>0.0001){alert(`残高が ${yen(bal)} あります。先に「振替」で残高を0円にしてから削除してください。`);return}if(confirm(`「${x.name}」を削除しますか？`)){d.goalSavings.splice(i,1);save();render()}}
+function deleteGoal(i){
+ let x=d.goalSavings[i],bal=goalBalance(x.id,viewKey);
+ if(Math.abs(bal)>0.0001){alert(`残高が ${yen(bal)} あります。先に振替で0円にしてから削除してください。`);return;}
+ if(confirm(`「${x.name}」を削除しますか？`)){d.goalSavings.splice(i,1);save();render()}
+}
 
 function displayCat(e){if(e.type==="budget")return e.cat;if(e.type==="saving")return savingById(e.cat)?.name||"積立";if(e.type==="goal")return goalById(e.cat)?.name||"貯金";return"未振分金"}
 function saveSettings(){d.baseIncome=Number(baseIncome.value)||0;d.startDay=Math.min(28,Math.max(1,Number(startDay.value)||10));save();viewKey=current().key;ensureCycle();render();toastMsg("保存しました")}
