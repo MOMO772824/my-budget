@@ -48,7 +48,7 @@ h2{font-size:18px;margin:6px 0 14px}.hidden{display:none}
 
 <script>
 const KEY="myBudgetAppV3";
-const APP_VERSION=26;
+const APP_VERSION=27;
 const fresh={
  version:APP_VERSION,startDay:10,baseIncome:190000,bank:0,
  categories:[["食費",20000],["交通費",8000],["交際費",20000],["美容",0],["コスメ",5000],["服・靴",10000],["日用品",5000],["医療",5000],["趣味",5000],["旅行",0],["その他",7000]],
@@ -71,6 +71,13 @@ function keyForDate(s){return cycleForDate(new Date(s+"T12:00:00")).key}
 function current(){return cycleForDate(new Date())}
 function cycleFromKey(key){let[y,m]=key.split("-").map(Number);return cycleForDate(new Date(y,m-1,d.startDay))}
 function monthOffset(key,delta){let[y,m]=key.split("-").map(Number),x=new Date(y,m-1+delta,1);return`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`}
+
+function bookStartKey(){
+ return String(d._v16StartDate||"2026-08-10").slice(0,7);
+}
+function isBookMonth(key){
+ return key>=bookStartKey();
+}
 
 function migrate(){
  d.version=APP_VERSION;
@@ -149,7 +156,7 @@ function migrate(){
    d._v14BudgetMigrated=true;
  }
  // 積立をオブジェクトへ正規化
- let firstKey=Object.keys(d.cycles).sort()[0]||current().key;
+ let firstKey=bookStartKey();
  d.savings=d.savings.map((x,i)=>{
    if(Array.isArray(x))return{id:"s"+i+"_"+x[0],name:String(x[0]),base:Number(x[1]||0),initial:Number(x[2]||0),startKey:x[3]||firstKey};
    return{id:x.id||("s"+i+"_"+x.name),name:String(x.name||"積立"),base:Number(x.base||x.monthly||0),initial:Number(x.initial||0),startKey:x.startKey||firstKey};
@@ -194,6 +201,7 @@ function sourceSpent(type,name,key=viewKey){return d.expenses.filter(e=>e.type==
 
 function baseCategory(name){let x=d.categories.find(v=>v[0]===name);return x?Number(x[1]||0):0}
 function budgetFor(name,key=viewKey){
+ if(!isBookMonth(key))return 0;
  let one=d.budgetMonthly?.[key]?.[name];
  if(one!==undefined)return Number(one);
  let rules=(d.budgetForward?.[name]||[]).filter(r=>r.from<=key).sort((a,b)=>a.from.localeCompare(b.from));
@@ -203,7 +211,7 @@ function budgetFor(name,key=viewKey){
 function budgetTotal(key=viewKey){return d.categories.reduce((a,x)=>a+budgetFor(x[0],key),0)}
 
 function savingById(id){return d.savings.find(x=>x.id===id)}
-function savingAmount(id,key=viewKey){let s=savingById(id);if(!s)return 0;let v=d.savingMonthly?.[key]?.[id];return v===undefined?Number(s.base||0):Number(v)}
+function savingAmount(id,key=viewKey){let s=savingById(id);if(!s||!isBookMonth(key)||key<s.startKey)return 0;let v=d.savingMonthly?.[key]?.[id];return v===undefined?Number(s.base||0):Number(v)}
 function sumMonths(start,key,fn){if(start>key)return 0;let total=0,k=start,guard=0;while(k<=key&&guard++<600){total+=Number(fn(k)||0);k=monthOffset(k,1)}return total}
 function savingBalance(id,key=viewKey){
  let s=savingById(id);if(!s)return 0;
@@ -216,7 +224,7 @@ function savingBalanceTotal(key=viewKey){return d.savings.reduce((a,s)=>a+saving
 
 function goalById(id){return d.goalSavings.find(x=>x.id===id)}
 function goalAmount(id,key=viewKey){
- let g=goalById(id);if(!g)return 0;
+ let g=goalById(id);if(!g||!isBookMonth(key)||key<g.startKey)return 0;
  if(key>="2026-09")return 0;
  let v=d.goalSavingMonthly?.[key]?.[id];
  return v===undefined?Number(g.base||0):Number(v);
@@ -326,7 +334,7 @@ function cycleKeysThrough(key){
  let set=new Set(Object.keys(d.cycles||{})); set.add(key);
  d.incomes.forEach(e=>set.add(keyForDate(e.date))); d.expenses.forEach(e=>set.add(keyForDate(e.date)));
  Object.keys(d.budgetMonthly||{}).forEach(k=>set.add(k)); Object.keys(d.savingMonthly||{}).forEach(k=>set.add(k)); Object.keys(d.goalSavingMonthly||{}).forEach(k=>set.add(k));
- return [...set].filter(k=>k<=key).sort();
+ return [...set].filter(k=>k>=bookStartKey()&&k<=key).sort();
 }
 function unallocatedForMonth(key){
  let inc=incomeTotal(key);
@@ -443,6 +451,9 @@ function accountingDiagnostics(key=viewKey){
  if(Math.abs(m.transferNetSum)>0.0001)warnings.push(`振替の差額 ${yen(m.transferNetSum)}`);
  if(Math.abs(m.allocationSum-m.income)>0.0001)warnings.push(`収入と振分の差額 ${yen(m.allocationSum-m.income)}`);
  if(m.unallocatedNet<0)warnings.push(`未振分が ${yen(m.unallocatedNet)}（振り分け超過）`);
+ if(key===bookStartKey()&&Math.abs(unallocatedBalance(key)-m.unallocatedNet)>0.0001){
+   warnings.push(`未振分表示の差額 ${yen(unallocatedBalance(key)-m.unallocatedNet)}`);
+ }
  return{...m,warnings};
 }
 
@@ -491,7 +502,7 @@ function renderHome(){
  let used=expenses(viewKey).filter(e=>e.type==="budget").reduce((a,e)=>a+Number(e.amount||0),0);
  period.innerHTML=`<button class="secondary" onclick="moveMonth(-1)">‹</button>　${c.label}　<button class="secondary" onclick="moveMonth(1)">›</button>`;
  document.getElementById("home").innerHTML=`
- <div class="card hero"><span class="badge">振り分け家計簿 v26</span><div class="label" style="margin-top:12px">今月の収入</div><div class="big">${yen(m.income)}</div>
+ <div class="card hero"><span class="badge">振り分け家計簿 v27</span><div class="label" style="margin-top:12px">今月の収入</div><div class="big">${yen(m.income)}</div>
  <div class="row mini"><span>振り分け済 ${yen(m.allocated)}</span><span>今月未振分 ${yen(m.unallocatedNet)}</span></div>
  <div class="progress"><i style="width:${Math.min(100,Math.max(0,m.income?m.allocated/m.income*100:0))}%"></i></div>
  ${diag.warnings.length?`<div class="notice" style="margin-top:10px">⚠️ ${diag.warnings.join(" / ")}</div>`:""}
@@ -570,7 +581,7 @@ function renderHistory(){
      </div>`).join(""):`<div class="muted mini">この期間の支出はありません。</div>`}
  </div>`;
 }
-function renderSettings(){document.getElementById("settings").innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><span class="badge">振り分け家計簿 v26</span><label class="mini" style="display:block;margin-top:14px">毎月の基本収入（参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div>
+function renderSettings(){document.getElementById("settings").innerHTML=`<div class="card"><h2>⚙️ 基本設定</h2><span class="badge">振り分け家計簿 v27</span><label class="mini" style="display:block;margin-top:14px">毎月の基本収入（参考値）</label><input id="baseIncome" type="number" value="${d.baseIncome}"><label class="mini">家計開始日</label><input id="startDay" type="number" min="1" max="28" value="${d.startDay}"><button class="primary" onclick="saveSettings()">保存</button></div>
 <div class="card"><h2>🧮 計算チェック</h2>
 ${(()=>{let a=accountingDiagnostics(viewKey);return`<div class="notice">収入 ${yen(a.income)}<br>振り分け合計 ${yen(a.allocationSum)}<br>差額 ${yen(a.allocationSum-a.income)}<br>振替差額 ${yen(a.transferNetSum)}<br><b>${a.exact?"✓ 計算一致":"⚠️ 要確認"}</b></div>`})()}
 </div>
@@ -591,7 +602,11 @@ function openHistory(){
  document.querySelector(".fab").style.display="none";
  window.scrollTo(0,0);
 }
-function moveMonth(delta){viewKey=monthOffset(viewKey,delta);ensureCycle(viewKey);render()}
+function moveMonth(delta){
+ let next=monthOffset(viewKey,delta);
+ if(next<bookStartKey()){toastMsg("この家計簿は2026年8月10日からです");return;}
+ viewKey=next;ensureCycle(viewKey);render()
+}
 function goCurrent(){viewKey=current().key;render()}
 function tab(id,btn){
  render();
